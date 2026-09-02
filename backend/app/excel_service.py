@@ -54,17 +54,44 @@ def _num(v) -> str:
     return str(v)
 
 
-def _body_row_xml(r: int, ligne: LigneDevis) -> str:
+def _ensure_border_styles(styles_xml: str) -> tuple[str, dict]:
+    """Ajoute des cellXfs avec bordure (boite complete, borderId=1) pour le tableau.
+
+    Rend le quadrillage INDEPENDANT du 'style de tableau' Excel : certaines versions de
+    LibreOffice (ex. sur Raspberry Pi) ne dessinent pas les bordures issues du style de
+    tableau. On applique donc des bordures explicites sur l'en-tete et le corps.
+    """
+    base = int(re.search(r'<cellXfs count="(\d+)">', styles_xml).group(1))
+    xfs = [
+        # A (produit) : texte, retour a la ligne, bordure
+        '<xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1" '
+        'applyAlignment="1"><alignment wrapText="1"/></xf>',
+        # nombre / general avec bordure (sert pour B et l'en-tete)
+        '<xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1"/>',
+        # D (TVA) : format pourcentage 164, bordure
+        '<xf numFmtId="164" fontId="0" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyBorder="1"/>',
+        # C et E : euro (numFmt 44), bordure
+        '<xf numFmtId="44" fontId="0" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyBorder="1"/>',
+    ]
+    styles_xml = styles_xml.replace(f'<cellXfs count="{base}">',
+                                    f'<cellXfs count="{base + len(xfs)}">', 1)
+    styles_xml = styles_xml.replace('</cellXfs>', ''.join(xfs) + '</cellXfs>', 1)
+    return styles_xml, {
+        "A": base, "B": base + 1, "header": base + 1, "D": base + 2, "C": base + 3, "E": base + 3,
+    }
+
+
+def _body_row_xml(r: int, ligne: LigneDevis, st: dict) -> str:
     h = _est_height(ligne.produit)
     produit = escape(ligne.produit or "")
     tva_frac = (ligne.tva_pct or 0) / 100.0
     return (
         f'<row r="{r}" spans="1:5" ht="{h:.0f}" customHeight="1" x14ac:dyDescent="0.2">'
-        f'<c r="A{r}" s="13" t="inlineStr"><is><t xml:space="preserve">{produit}</t></is></c>'
-        f'<c r="B{r}"><v>{_num(ligne.quantite)}</v></c>'
-        f'<c r="C{r}" s="3"><v>{_num(ligne.prix_unit_ht)}</v></c>'
-        f'<c r="D{r}" s="11"><v>{tva_frac}</v></c>'
-        f'<c r="E{r}" s="3"><f>{ROW_FORMULA}</f></c>'
+        f'<c r="A{r}" s="{st["A"]}" t="inlineStr"><is><t xml:space="preserve">{produit}</t></is></c>'
+        f'<c r="B{r}" s="{st["B"]}"><v>{_num(ligne.quantite)}</v></c>'
+        f'<c r="C{r}" s="{st["C"]}"><v>{_num(ligne.prix_unit_ht)}</v></c>'
+        f'<c r="D{r}" s="{st["D"]}"><v>{tva_frac}</v></c>'
+        f'<c r="E{r}" s="{st["E"]}"><f>{ROW_FORMULA}</f></c>'
         f'</row>'
     )
 
@@ -77,7 +104,7 @@ def _shift_row(row_xml: str, delta: int) -> str:
     return row_xml
 
 
-def _build_sheet(xml: str, lignes: list[LigneDevis]) -> str:
+def _build_sheet(xml: str, lignes: list[LigneDevis], st: dict) -> str:
     n = max(len(lignes), 1)
     delta = n - 1
     sd = re.search(r'<sheetData>(.*)</sheetData>', xml, re.S)
@@ -86,12 +113,16 @@ def _build_sheet(xml: str, lignes: list[LigneDevis]) -> str:
     out = []
     for rx in rows:
         rn = int(re.search(r'<row [^>]*\br="(\d+)"', rx).group(1))
-        if rn < BODY_ROW:
+        if rn == HEADER_ROW:
+            # Bordures explicites sur l'en-tete du tableau (A17:E17).
+            rx = re.sub(r'<c r="([A-E]17)"(?![^>]*\bs=)', rf'<c r="\1" s="{st["header"]}"', rx)
+            out.append(rx)
+        elif rn < BODY_ROW:
             out.append(rx)
         elif rn == BODY_ROW:
             for i in range(n):
                 ligne = lignes[i] if i < len(lignes) else LigneDevis()
-                out.append(_body_row_xml(BODY_ROW + i, ligne))
+                out.append(_body_row_xml(BODY_ROW + i, ligne, st))
         else:
             out.append(_shift_row(rx, delta) if delta else rx)
 
@@ -161,9 +192,14 @@ def write_devis(data: DevisData, dest_path: Path) -> Path:
     with zipfile.ZipFile(settings.template_file) as z:
         z.extractall(work)
 
+    # Ajoute les styles avec bordure explicite (independants du style de tableau).
+    styles_p = work / "xl/styles.xml"
+    styles_xml, st = _ensure_border_styles(styles_p.read_text(encoding="utf-8"))
+    styles_p.write_text(styles_xml, encoding="utf-8")
+
     sheet_p = work / "xl/worksheets/sheet1.xml"
     xml = sheet_p.read_text(encoding="utf-8")
-    xml = _build_sheet(xml, data.lignes)
+    xml = _build_sheet(xml, data.lignes, st)
     xml = _set_dates(xml, data.date_devis, data.date_prestation)
     xml = _set_client(xml, data)
     sheet_p.write_text(xml, encoding="utf-8")
