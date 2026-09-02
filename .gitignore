@@ -21,3 +21,6 @@ data/*.db
 
 # Cache PDF (regenere a la demande)
 backend/.pdf_cache/
+
+# Aucune donnée métier dans le dépôt (template, devis, base vivent dans OneDrive)
+data/
