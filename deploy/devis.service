@@ -1,0 +1,22 @@
+# Alternative sans Docker : service systemd (a placer dans /etc/systemd/system/).
+# Prerequis sur le Pi :
+#   sudo apt-get install python3-venv libreoffice-calc
+#   cd /home/pi/devis-app/backend && python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+#   npm --prefix /home/pi/devis-app/frontend ci && npm --prefix /home/pi/devis-app/frontend run build
+# Puis :
+#   sudo cp deploy/devis.service /etc/systemd/system/
+#   sudo systemctl enable --now devis
+[Unit]
+Description=Devis Traiteur (FastAPI + React)
+After=network.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/devis-app/backend
+Environment=PATH=/home/pi/devis-app/backend/.venv/bin
+ExecStart=/home/pi/devis-app/backend/.venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

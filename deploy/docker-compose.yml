@@ -1,0 +1,21 @@
+services:
+  devis:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    container_name: devis-traiteur
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      # Chemins VUS DE L'INTERIEUR du conteneur (voir volumes ci-dessous).
+      DATA_DIR: /data
+      DEVIS_SUBDIR: devis
+      TEMPLATE_PATH: /data/templates/template.xlsx
+      DATABASE_URL: sqlite:////data/devis.db
+      CORS_ORIGINS: "*"
+    volumes:
+      # Montez ici votre dossier OneDrive deja synchronise sur le Pi.
+      # Exemple (a adapter) :
+      #   - "/home/pi/OneDrive/sarl ASD/Compta/Devis Traiteur:/data"
+      - "../data:/data"

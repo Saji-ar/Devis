@@ -1,0 +1,21 @@
+# Python
+backend/.venv/
+__pycache__/
+*.pyc
+backend/.env
+backend/devis.db
+
+# Node
+frontend/node_modules/
+frontend/dist/
+
+# Donnees (les xlsx et la base vivent dans OneDrive, pas dans le depot)
+data/devis/
+data/pdf/
+data/*.db
+
+# Divers
+.DS_Store
+
+# Cache PDF (regenere a la demande)
+backend/.pdf_cache/
