@@ -74,6 +74,19 @@ Prérequis : Python 3, Node 20+, et LibreOffice (`brew install --cask libreoffic
 Voir les instructions en tête de `deploy/devis.service`.
 Installez LibreOffice : `sudo apt-get install libreoffice-calc`.
 
+## Sécurité (mot de passe)
+
+- Mot de passe en clair dans `backend/.env` : `APP_PASSWORD=...` (vide = aucune protection).
+- À la connexion, le navigateur mémorise un jeton (localStorage) → **pas besoin de retaper**
+  le mot de passe à chaque fois. Bouton « Se déconnecter » pour l'oublier.
+- **Blocage anti-force brute** : après plus de `MAX_LOGIN_ATTEMPTS` (défaut 10) essais ratés,
+  l'appli se bloque et écrit `APP_ENABLED=false` dans `.env`. Ce blocage **survit au
+  redémarrage**. Pour réactiver, remettez **manuellement** `APP_ENABLED=true` dans `.env`
+  puis redémarrez le serveur.
+
+> Le mot de passe protège l'API. Servez l'appli derrière HTTPS (ou sur votre réseau local
+> uniquement) pour que le mot de passe ne circule pas en clair sur le réseau.
+
 ## Configuration
 
 Copiez `backend/.env.example` en `backend/.env` et adaptez `DATA_DIR` (chemin du dossier

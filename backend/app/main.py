@@ -1,14 +1,15 @@
 """Point d'entree FastAPI de l'appli Devis."""
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from .config import settings
 from .db import init_db
-from .routers import clients, devis
+from .security import require_auth
+from .routers import auth, clients, devis
 
 app = FastAPI(title="Devis Traiteur", version="0.1.0")
 
@@ -19,8 +20,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(clients.router)
-app.include_router(devis.router)
+# Routes ouvertes (auth) et routes protegees par mot de passe.
+app.include_router(auth.router)
+app.include_router(clients.router, dependencies=[Depends(require_auth)])
+app.include_router(devis.router, dependencies=[Depends(require_auth)])
 
 
 @app.on_event("startup")

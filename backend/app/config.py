@@ -17,6 +17,15 @@ class Settings(BaseSettings):
     # Dossier ou sont ecrits les PDF exportes. Vide = <data_dir>/pdf.
     pdf_dir: str = ""
 
+    # --- Securite ---
+    # Mot de passe d'acces (en clair dans .env). Vide = aucune protection (mode dev).
+    app_password: str = ""
+    # Nombre de tentatives ratees autorisees. Au-dela, l'appli se bloque.
+    max_login_attempts: int = 10
+    # Interrupteur d'activation. Passe a false automatiquement apres trop d'echecs.
+    # Pour relancer l'appli : remettre APP_ENABLED=true dans .env puis redemarrer.
+    app_enabled: bool = True
+
     @property
     def devis_dir(self) -> Path:
         return (Path(self.data_dir) / self.devis_subdir).resolve()

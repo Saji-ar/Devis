@@ -1,12 +1,30 @@
 import type { Client, Devis, DevisData, DevisListItem, DevisVersion } from './types'
 
 const BASE = '/api'
+const TOKEN_KEY = 'devis_token'
+
+export const auth = {
+  get token() { return localStorage.getItem(TOKEN_KEY) || '' },
+  set token(v: string) { localStorage.setItem(TOKEN_KEY, v) },
+  clear() { localStorage.removeItem(TOKEN_KEY) },
+}
 
 async function req<T>(path: string, opts?: RequestInit): Promise<T> {
   const res = await fetch(BASE + path, {
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'X-Auth-Token': auth.token },
     ...opts,
   })
+  if (res.status === 401) {
+    // Jeton invalide/expire : on efface et on recharge -> ecran de connexion.
+    auth.clear()
+    window.location.reload()
+    throw new Error('Session expirée')
+  }
+  if (res.status === 423) {
+    // Application bloquee : on recharge -> ecran de blocage.
+    window.location.reload()
+    throw new Error('Application bloquée')
+  }
   if (!res.ok) {
     const detail = await res.json().catch(() => ({}))
     throw new Error(detail.detail || `Erreur ${res.status}`)
@@ -15,6 +33,11 @@ async function req<T>(path: string, opts?: RequestInit): Promise<T> {
 }
 
 export const api = {
+  // Auth
+  authStatus: () => req<{ auth_active: boolean; locked: boolean }>('/auth/status'),
+  login: (password: string) =>
+    req<{ token: string }>('/auth/login', { method: 'POST', body: JSON.stringify({ password }) }),
+
   // Clients
   listClients: () => req<Client[]>('/clients'),
   getClient: (id: number) => req<{ client: Client; devis: Devis[] }>(`/clients/${id}`),
