@@ -13,6 +13,7 @@ export default function DevisListPage() {
 
   // Formulaire "Nouveau devis"
   const [showNew, setShowNew] = useState(false)
+  const [nom, setNom] = useState('')                     // nom du devis -> reference AAAA_nom
   const [clientId, setClientId] = useState<string>('')   // '' | '__new__' | id
   const [newNom, setNewNom] = useState('')
   const [newTel, setNewTel] = useState('')
@@ -40,7 +41,7 @@ export default function DevisListPage() {
       } else {
         setError('Choisissez un client.'); setBusy(false); return
       }
-      const d = await api.createDevis({ client_id: cid })
+      const d = await api.createDevis({ client_id: cid, nom: nom.trim() || undefined })
       navigate(`/devis/${d.id}`)
     } catch (e: any) { setError(e.message) } finally { setBusy(false) }
   }
@@ -76,6 +77,11 @@ export default function DevisListPage() {
       {showNew && (
         <div className="panel">
           <h3 style={{ marginTop: 0 }}>Nouveau devis</h3>
+          <div className="field">
+            <label>Nom du devis (sert de référence : 2026_nom)</label>
+            <input value={nom} onChange={(e) => setNom(e.target.value)}
+              placeholder="Mariage Dupont, Anniversaire 50 ans…" />
+          </div>
           <div className="field">
             <label>Client</label>
             <select value={clientId} onChange={(e) => setClientId(e.target.value)}>
@@ -116,7 +122,15 @@ export default function DevisListPage() {
                 <td className="num">
                   {it.derniere_version ? euro(it.derniere_version.montant_ttc) : '—'}
                 </td>
-                <td className="num"><Link to={`/devis/${it.devis.id}`}>Ouvrir →</Link></td>
+                <td className="num" style={{ whiteSpace: 'nowrap' }}>
+                  {it.derniere_version && (
+                    <button className="small" title="Ouvrir le PDF"
+                      onClick={() => api.openPdf(it.derniere_version!.id).catch((e) => setError(e.message))}>
+                      📄 PDF
+                    </button>
+                  )}{' '}
+                  <Link to={`/devis/${it.devis.id}`}>Ouvrir →</Link>
+                </td>
               </tr>
             ))}
             {items.length === 0 && (

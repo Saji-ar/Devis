@@ -22,6 +22,16 @@ def _next_reference(session: Session) -> str:
     return f"{year}-{count + 1:03d}"
 
 
+def _reference_from_nom(session: Session, nom: str) -> str:
+    """Construit une reference "AAAA_nom" unique (ajoute un suffixe si deja pris)."""
+    base = storage.canonical_reference(f"{date.today().year}_{nom}")
+    ref, i = base, 2
+    while session.exec(select(Devis).where(Devis.reference == ref)).first():
+        ref = f"{base} ({i})"
+        i += 1
+    return ref
+
+
 @router.get("")
 def list_devis(session: Session = Depends(get_session)):
     scan_service.maybe_scan(session)  # scan automatique (throttle)
@@ -47,8 +57,15 @@ def create_devis(payload: DevisCreate, session: Session = Depends(get_session)):
     client = session.get(Client, payload.client_id)
     if not client:
         raise HTTPException(404, "Client introuvable")
-    reference = payload.reference or _next_reference(session)
-    devis = Devis(client_id=payload.client_id, titre=payload.titre, reference=reference)
+    if payload.reference:
+        reference = payload.reference
+    elif payload.nom and payload.nom.strip():
+        reference = _reference_from_nom(session, payload.nom.strip())
+    else:
+        reference = _next_reference(session)
+    devis = Devis(client_id=payload.client_id,
+                  titre=payload.titre or (payload.nom.strip() if payload.nom else None),
+                  reference=reference)
     session.add(devis)
     session.commit()
     session.refresh(devis)

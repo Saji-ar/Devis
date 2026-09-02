@@ -81,9 +81,15 @@ export default function DevisEditorPage() {
           <h2 style={{ margin: 0 }}>Devis {devis.reference}</h2>
           <div className="muted">{client?.nom}{devis.titre ? ` — ${devis.titre}` : ''}</div>
         </div>
-        <button className="primary" onClick={save} disabled={saving}>
-          {saving ? 'Enregistrement…' : '💾 Enregistrer une nouvelle version'}
-        </button>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          {versions.length > 0 && (
+            <button onClick={() => api.openPdf(versions[0].id).catch((e) => setError(e.message))}
+              title="Ouvrir le PDF de la dernière version">📄 PDF</button>
+          )}
+          <button className="primary" onClick={save} disabled={saving}>
+            {saving ? 'Enregistrement…' : '💾 Enregistrer une nouvelle version'}
+          </button>
+        </div>
       </div>
       {error && <div className="error">{error}</div>}
 
@@ -163,8 +169,8 @@ export default function DevisEditorPage() {
                 <td><span className={`badge ${v.origin}`}>{v.origin}</span></td>
                 <td className="num">{euro(v.montant_ttc)}</td>
                 <td className="num" style={{ whiteSpace: 'nowrap' }}>
-                  <a href={api.pdfUrl(v.id)} target="_blank" rel="noreferrer">PDF</a>{' · '}
-                  <a href={api.xlsxUrl(v.id)}>Excel</a>{' · '}
+                  <button className="small" onClick={() => api.openPdf(v.id).catch((e) => setError(e.message))}>PDF</button>{' '}
+                  <button className="small" onClick={() => api.downloadXlsx(v.id, `${devis.reference}_v${v.version_no}.xlsx`).catch((e) => setError(e.message))}>Excel</button>{' '}
                   <button className="small" onClick={() => chargerVersion(v)}>Repartir de là</button>
                 </td>
               </tr>
