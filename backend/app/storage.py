@@ -16,9 +16,18 @@ from .config import settings
 _VERSION_RE = re.compile(r"^v(\d+)_(\d{4}-\d{2}-\d{2})\.xlsx$", re.IGNORECASE)
 
 
+def canonical_reference(s: str) -> str:
+    """Reference "canonique" = nom de dossier. Garde lettres/chiffres/accents/espaces,
+    remplace seulement les caracteres interdits en chemin. IDEMPOTENTE : appliquer deux
+    fois donne le meme resultat, pour que reference == nom du dossier (evite les doublons au scan).
+    """
+    s = re.sub(r'[\\/:*?"<>|\x00-\x1f]', "_", s or "")
+    s = re.sub(r"\s+", " ", s).strip()
+    return s or "devis"
+
+
 def devis_folder(reference: str) -> Path:
-    safe = re.sub(r"[^A-Za-z0-9_-]+", "_", reference).strip("_") or "devis"
-    return settings.devis_dir / safe
+    return settings.devis_dir / canonical_reference(reference)
 
 
 def version_filename(version_no: int, d: date) -> str:

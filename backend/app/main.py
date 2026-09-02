@@ -29,6 +29,15 @@ app.include_router(devis.router, dependencies=[Depends(require_auth)])
 @app.on_event("startup")
 def on_startup():
     init_db()
+    # Scan initial : recupere les devis presents sur le disque (crees a la main / synchronises).
+    from .db import engine
+    from sqlmodel import Session
+    from . import scan_service
+    try:
+        with Session(engine) as s:
+            scan_service.scan(s)
+    except Exception:
+        pass
 
 
 @app.get("/api/health")

@@ -1,8 +1,10 @@
 """Routes pour les devis, leurs versions, l'export PDF et le scan."""
 import json
+import tempfile
 from datetime import date
+from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from fastapi.responses import FileResponse
 from sqlmodel import Session, select
 
@@ -22,6 +24,7 @@ def _next_reference(session: Session) -> str:
 
 @router.get("")
 def list_devis(session: Session = Depends(get_session)):
+    scan_service.maybe_scan(session)  # scan automatique (throttle)
     rows = session.exec(select(Devis).order_by(Devis.created_at.desc())).all()
     out = []
     for d in rows:
@@ -137,13 +140,22 @@ def download_pdf(version_id: int, session: Session = Depends(get_session)):
     return FileResponse(pdf, filename=pdf.name, media_type="application/pdf")
 
 
-@router.post("/scan")
-def run_scan(session: Session = Depends(get_session)):
-    """Reconcilie le dossier Excel avec la base (recupere les versions creees a la main)."""
-    return scan_service.scan(session)
-
-
-@router.post("/import-anciens")
-def run_import(session: Session = Depends(get_session)):
-    """Importe les anciens .xlsx du dossier configure (import_source_dir)."""
-    return import_service.import_old(session)
+@router.post("/import")
+async def import_upload(file: UploadFile = File(...), session: Session = Depends(get_session)):
+    """Importe un devis en deposant un fichier .xlsx (creation d'un devis + version v1)."""
+    name = file.filename or "devis.xlsx"
+    if not name.lower().endswith(".xlsx"):
+        raise HTTPException(400, "Merci de déposer un fichier Excel .xlsx")
+    contents = await file.read()
+    with tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False) as tmp:
+        tmp.write(contents)
+        tmp_path = Path(tmp.name)
+    try:
+        reference = import_service.make_reference(Path(name).stem)
+        ref = import_service.import_one(session, tmp_path, reference)
+    finally:
+        tmp_path.unlink(missing_ok=True)
+    if not ref:
+        raise HTTPException(400, "Fichier non importé (déjà présent, vide, ou format non reconnu).")
+    devis = session.exec(select(Devis).where(Devis.reference == ref)).first()
+    return {"imported": 1, "reference": ref, "devis_id": devis.id if devis else None}

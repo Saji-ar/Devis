@@ -7,6 +7,8 @@ Parcourt <DEVIS_DIR>/<reference>/v<N>_<date>.xlsx et met a jour SQLite :
 Le template ne contient pas d'infos client : un .xlsx cree a la main pour une reference
 inconnue est rattache a un client "A preciser", a corriger ensuite dans l'appli.
 """
+import time
+
 from sqlmodel import Session, select
 
 from .config import settings
@@ -14,6 +16,10 @@ from .models import Client, Devis, DevisVersion
 from . import storage, excel_service
 
 _CLIENT_A_PRECISER = "A preciser"
+
+# Auto-scan throttle : on ne rescanne pas plus d'une fois toutes les N secondes.
+_last_scan = 0.0
+_SCAN_THROTTLE_S = 8.0
 
 
 def _get_or_create_client(session: Session, nom: str) -> Client:
@@ -89,3 +95,16 @@ def scan(session: Session) -> dict:
             session.commit()
 
     return {"added": added, "updated": updated, "skipped": skipped}
+
+
+def maybe_scan(session: Session) -> None:
+    """Scan automatique throttle : appele a chaque listing, silencieux en cas d'erreur."""
+    global _last_scan
+    now = time.time()
+    if now - _last_scan < _SCAN_THROTTLE_S:
+        return
+    _last_scan = now
+    try:
+        scan(session)
+    except Exception:
+        pass

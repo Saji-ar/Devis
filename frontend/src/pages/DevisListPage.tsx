@@ -1,34 +1,60 @@
-import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useEffect, useRef, useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import { api } from '../api'
-import type { DevisListItem } from '../types'
+import type { Client, DevisListItem } from '../types'
 
 const euro = (n: number) => n.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })
 
 export default function DevisListPage() {
   const [items, setItems] = useState<DevisListItem[]>([])
+  const [clients, setClients] = useState<Client[]>([])
   const [msg, setMsg] = useState('')
   const [error, setError] = useState('')
 
-  const load = () => api.listDevis().then(setItems).catch((e) => setError(e.message))
+  // Formulaire "Nouveau devis"
+  const [showNew, setShowNew] = useState(false)
+  const [clientId, setClientId] = useState<string>('')   // '' | '__new__' | id
+  const [newNom, setNewNom] = useState('')
+  const [newTel, setNewTel] = useState('')
+  const [busy, setBusy] = useState(false)
+
+  const fileRef = useRef<HTMLInputElement>(null)
+  const navigate = useNavigate()
+
+  const load = () => {
+    api.listDevis().then(setItems).catch((e) => setError(e.message))
+    api.listClients().then(setClients).catch(() => {})
+  }
   useEffect(() => { load() }, [])
 
-  const scan = async () => {
-    setMsg(''); setError('')
+  const creerDevis = async () => {
+    setError(''); setBusy(true)
     try {
-      const r = await api.scan()
-      setMsg(`Scan terminé : ${r.added} ajouté(s), ${r.updated} mis à jour, ${r.skipped} ignoré(s).`)
-      load()
-    } catch (e: any) { setError(e.message) }
+      let cid: number
+      if (clientId === '__new__') {
+        if (!newNom.trim()) { setError('Nom du client obligatoire.'); setBusy(false); return }
+        const c = await api.createClient({ nom: newNom.trim(), telephone: newTel.trim() || undefined })
+        cid = c.id
+      } else if (clientId) {
+        cid = Number(clientId)
+      } else {
+        setError('Choisissez un client.'); setBusy(false); return
+      }
+      const d = await api.createDevis({ client_id: cid })
+      navigate(`/devis/${d.id}`)
+    } catch (e: any) { setError(e.message) } finally { setBusy(false) }
   }
 
-  const importer = async () => {
+  const onFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    e.target.value = '' // permet de re-déposer le même fichier
+    if (!file) return
     setMsg(''); setError('')
     try {
-      const r = await api.importOld()
-      setMsg(`Import terminé : ${r.imported} devis importé(s)${r.refs.length ? ' — ' + r.refs.join(', ') : ''}.`)
-      load()
-    } catch (e: any) { setError(e.message) }
+      const r = await api.uploadDevis(file)
+      setMsg(`Devis importé : ${r.reference}.`)
+      navigate(`/devis/${r.devis_id}`)
+    } catch (err: any) { setError(err.message) }
   }
 
   return (
@@ -36,16 +62,41 @@ export default function DevisListPage() {
       <div className="toolbar">
         <h2 style={{ margin: 0 }}>Devis</h2>
         <div style={{ display: 'flex', gap: 8 }}>
-          <button onClick={importer} title="Importe les anciens devis .xlsx du dossier configuré">
-            📥 Importer d'anciens devis
+          <input ref={fileRef} type="file" accept=".xlsx" hidden onChange={onFile} />
+          <button onClick={() => fileRef.current?.click()}
+            title="Importer un devis existant en déposant un fichier Excel .xlsx">
+            📥 Importer un Excel
           </button>
-          <button onClick={scan} title="Récupère les fichiers Excel créés ou modifiés à la main">
-            🔄 Scanner le dossier Excel
-          </button>
+          <button className="primary" onClick={() => setShowNew((v) => !v)}>+ Nouveau devis</button>
         </div>
       </div>
       {msg && <div className="muted" style={{ marginBottom: 10 }}>{msg}</div>}
       {error && <div className="error">{error}</div>}
+
+      {showNew && (
+        <div className="panel">
+          <h3 style={{ marginTop: 0 }}>Nouveau devis</h3>
+          <div className="field">
+            <label>Client</label>
+            <select value={clientId} onChange={(e) => setClientId(e.target.value)}>
+              <option value="">— Choisir un client —</option>
+              <option value="__new__">➕ Nouveau client…</option>
+              {clients.map((c) => <option key={c.id} value={c.id}>{c.nom}</option>)}
+            </select>
+          </div>
+          {clientId === '__new__' && (
+            <div className="row">
+              <div className="field"><label>Nom du client *</label>
+                <input value={newNom} onChange={(e) => setNewNom(e.target.value)} autoFocus /></div>
+              <div className="field"><label>Téléphone</label>
+                <input value={newTel} onChange={(e) => setNewTel(e.target.value)} /></div>
+            </div>
+          )}
+          <button className="primary" onClick={creerDevis} disabled={busy}>
+            {busy ? 'Création…' : 'Créer le devis'}
+          </button>
+        </div>
+      )}
 
       <div className="panel">
         <table>
@@ -70,7 +121,7 @@ export default function DevisListPage() {
             ))}
             {items.length === 0 && (
               <tr><td colSpan={6} className="muted">
-                Aucun devis. Créez un client puis « + Devis », ou scannez le dossier Excel.
+                Aucun devis. Cliquez « + Nouveau devis », ou importez un fichier Excel.
               </td></tr>
             )}
           </tbody>

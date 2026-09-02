@@ -51,7 +51,6 @@ export const api = {
   listDevis: () => req<DevisListItem[]>('/devis'),
   createDevis: (d: { client_id: number; titre?: string }) =>
     req<Devis>('/devis', { method: 'POST', body: JSON.stringify(d) }),
-  importOld: () => req<{ imported: number; refs: string[] }>('/devis/import-anciens', { method: 'POST' }),
   getDevis: (id: number) =>
     req<{ devis: Devis; client: Client; versions: DevisVersion[] }>(`/devis/${id}`),
   getVersionData: (versionId: number) => req<DevisData>(`/devis/version/${versionId}/data`),
@@ -60,7 +59,20 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ data }),
     }),
-  scan: () => req<{ added: number; updated: number; skipped: number }>('/devis/scan', { method: 'POST' }),
+  // Import d'un devis en deposant un fichier .xlsx
+  uploadDevis: async (file: File) => {
+    const fd = new FormData()
+    fd.append('file', file)
+    const res = await fetch(`${BASE}/devis/import`, {
+      method: 'POST', headers: { 'X-Auth-Token': auth.token }, body: fd,
+    })
+    if (res.status === 401) { auth.clear(); location.reload(); throw new Error('Session expirée') }
+    if (!res.ok) {
+      const d = await res.json().catch(() => ({}))
+      throw new Error(d.detail || `Erreur ${res.status}`)
+    }
+    return res.json() as Promise<{ imported: number; reference: string; devis_id: number }>
+  },
 
   // Fichiers (URLs directes)
   pdfUrl: (versionId: number) => `${BASE}/devis/version/${versionId}/pdf`,
