@@ -47,9 +47,11 @@ button.danger { color: var(--danger); border-color: #f0c9c9; }
 button.small { padding: 4px 9px; font-size: 13px; }
 
 input, textarea, select {
-  font: inherit; padding: 8px 10px; border: 1px solid var(--border);
+  font-family: inherit; font-size: 16px; /* 16px = evite le zoom auto au focus sur iPhone */
+  padding: 8px 10px; border: 1px solid var(--border);
   border-radius: 7px; width: 100%; background: #fff; color: var(--text);
 }
+textarea { resize: vertical; line-height: 1.4; }
 label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 4px; }
 .field { margin-bottom: 12px; }
 .row { display: flex; gap: 12px; }
@@ -70,4 +72,37 @@ td.num, th.num { text-align: right; }
 .error { color: var(--danger); font-size: 14px; margin: 8px 0; }
 .totaux { text-align: right; font-size: 15px; line-height: 1.9; }
 .totaux .ttc { font-size: 20px; font-weight: 700; }
-.lignes-table input { padding: 6px 8px; }
+.logout-btn { margin-top: 20px; width: 100%; }
+
+/* --- Cartes produit (éditeur de devis) --- */
+.produit-card {
+  border: 1px solid var(--border); border-radius: 10px;
+  padding: 12px; margin-bottom: 12px; background: #fbfcfd;
+}
+.produit-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.produit-num { font-size: 13px; color: var(--muted); font-weight: 600; }
+.produit-actions { display: flex; gap: 6px; }
+.produit-nom { width: 100%; }
+.produit-champs { display: flex; gap: 10px; margin-top: 10px; align-items: flex-end; flex-wrap: wrap; }
+.produit-champs label { flex: 1 1 90px; margin: 0; display: flex; flex-direction: column; gap: 4px; }
+.produit-total { flex: 1 1 120px; text-align: right; display: flex; flex-direction: column; gap: 2px; }
+.produit-total span { font-size: 12px; color: var(--muted); }
+.produit-total strong { font-size: 16px; }
+
+/* --- Adaptation téléphone --- */
+@media (max-width: 720px) {
+  .layout { flex-direction: column; }
+  .sidebar {
+    width: auto; flex-direction: row; align-items: center; flex-wrap: wrap;
+    gap: 10px; padding: 10px 14px;
+  }
+  .sidebar h1 { margin: 0; font-size: 16px; }
+  .sidebar nav { display: flex; gap: 6px; margin-left: auto; }
+  .sidebar nav a { margin: 0; padding: 7px 12px; }
+  .logout-btn { margin-top: 0; width: auto; }
+  .content { padding: 16px; max-width: none; }
+  .row { flex-direction: column; gap: 0; }
+  .toolbar { flex-wrap: wrap; }
+  /* Les tableaux de listes défilent horizontalement si besoin */
+  .panel > table { display: block; overflow-x: auto; white-space: nowrap; }
+}

@@ -99,43 +99,48 @@ export default function DevisEditorPage() {
       </div>
 
       <div className="panel">
-        <h3 style={{ marginTop: 0 }}>Produits</h3>
-        <table className="lignes-table">
-          <thead>
-            <tr>
-              <th style={{ width: '52%' }}>Produit</th>
-              <th className="num">Quantité</th><th className="num">Prix Unit HT</th>
-              <th className="num">TVA %</th><th className="num">Total HT</th><th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {data.lignes.map((l, i) => (
-              <tr key={i}>
-                <td>
-                  <textarea rows={Math.max(2, (l.produit.match(/\n/g)?.length || 0) + 1)}
-                    value={l.produit} onChange={(e) => setLigne(i, { produit: e.target.value })}
-                    placeholder={"Formule repas buffet\n- Entrée...\n- Plat...\n- Dessert..."} />
-                </td>
-                <td><input type="number" value={l.quantite}
-                  onChange={(e) => setLigne(i, { quantite: +e.target.value })} /></td>
-                <td><input type="number" step="0.01" value={l.prix_unit_ht}
-                  onChange={(e) => setLigne(i, { prix_unit_ht: +e.target.value })} /></td>
-                <td><input type="number" value={l.tva_pct}
-                  onChange={(e) => setLigne(i, { tva_pct: +e.target.value })} /></td>
-                <td className="num">{euro(l.quantite * l.prix_unit_ht)}</td>
-                <td className="num" style={{ whiteSpace: 'nowrap' }}>
-                  <button className="small" onClick={() => moveLigne(i, -1)} title="Monter">↑</button>{' '}
-                  <button className="small" onClick={() => moveLigne(i, 1)} title="Descendre">↓</button>{' '}
-                  <button className="small danger" onClick={() => removeLigne(i)}>✕</button>
-                </td>
-              </tr>
-            ))}
-            {data.lignes.length === 0 && (
-              <tr><td colSpan={6} className="muted">Aucun produit. Cliquez « + Ajouter un produit ».</td></tr>
-            )}
-          </tbody>
-        </table>
-        <button className="small" style={{ marginTop: 10 }} onClick={addLigne}>+ Ajouter un produit</button>
+        <div className="toolbar" style={{ marginBottom: 12 }}>
+          <h3 style={{ margin: 0 }}>Produits</h3>
+          <button className="small primary" onClick={addLigne}>+ Ajouter</button>
+        </div>
+
+        {data.lignes.length === 0 && (
+          <div className="muted">Aucun produit. Cliquez « + Ajouter ».</div>
+        )}
+
+        {data.lignes.map((l, i) => (
+          <div className="produit-card" key={i}>
+            <div className="produit-head">
+              <span className="produit-num">Produit #{i + 1}</span>
+              <div className="produit-actions">
+                <button className="small" onClick={() => moveLigne(i, -1)} title="Monter">↑</button>
+                <button className="small" onClick={() => moveLigne(i, 1)} title="Descendre">↓</button>
+                <button className="small danger" onClick={() => removeLigne(i)} title="Supprimer">✕</button>
+              </div>
+            </div>
+            <textarea className="produit-nom"
+              rows={Math.max(2, (l.produit.match(/\n/g)?.length || 0) + 1)}
+              value={l.produit} onChange={(e) => setLigne(i, { produit: e.target.value })}
+              placeholder={"Formule repas buffet\n- Entrée...\n- Plat...\n- Dessert..."} />
+            <div className="produit-champs">
+              <label>Quantité
+                <input type="number" inputMode="decimal" value={l.quantite}
+                  onChange={(e) => setLigne(i, { quantite: +e.target.value })} /></label>
+              <label>Prix Unit HT
+                <input type="number" inputMode="decimal" step="0.01" value={l.prix_unit_ht}
+                  onChange={(e) => setLigne(i, { prix_unit_ht: +e.target.value })} /></label>
+              <label>TVA %
+                <input type="number" inputMode="decimal" value={l.tva_pct}
+                  onChange={(e) => setLigne(i, { tva_pct: +e.target.value })} /></label>
+              <div className="produit-total">
+                <span>Total HT</span>
+                <strong>{euro(l.quantite * l.prix_unit_ht)}</strong>
+              </div>
+            </div>
+          </div>
+        ))}
+
+        <button className="small" style={{ marginTop: 4 }} onClick={addLigne}>+ Ajouter un produit</button>
 
         <div className="totaux" style={{ marginTop: 16 }}>
           <div>Montant Total HT : {euro(t.ht)}</div>

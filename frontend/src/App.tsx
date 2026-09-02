@@ -80,7 +80,7 @@ export default function App() {
           <NavLink to="/devis" className={({ isActive }) => (isActive ? 'active' : '')}>Devis</NavLink>
           <NavLink to="/clients" className={({ isActive }) => (isActive ? 'active' : '')}>Clients</NavLink>
         </nav>
-        <button className="small" style={{ marginTop: 20, width: '100%' }}
+        <button className="small logout-btn"
           onClick={() => { auth.clear(); location.reload() }}>Se déconnecter</button>
       </aside>
       <main className="content">
