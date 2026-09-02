@@ -25,6 +25,9 @@ class Settings(BaseSettings):
     # Interrupteur d'activation. Passe a false automatiquement apres trop d'echecs.
     # Pour relancer l'appli : remettre APP_ENABLED=true dans .env puis redemarrer.
     app_enabled: bool = True
+    # Fichier verrou de blocage (utilise quand .env n'est pas accessible, ex. Docker).
+    # En Docker, placez-le dans un volume persistant (ex. /db/app_locked).
+    lock_file: str = "app_locked"
 
     @property
     def devis_dir(self) -> Path:

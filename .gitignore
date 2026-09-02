@@ -4,6 +4,8 @@ __pycache__/
 *.pyc
 backend/.env
 backend/devis.db
+backend/app_locked
+deploy/.env
 
 # Node
 frontend/node_modules/

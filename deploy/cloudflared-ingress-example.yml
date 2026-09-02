@@ -1,0 +1,26 @@
+# EXEMPLE — à intégrer dans votre config Cloudflare Tunnel existante.
+#
+# Cas A — Tunnel géré par FICHIER (~/.cloudflared/config.yml sur le Pi) :
+#   Ajoutez la règle "devis.maisonaditya.fr" AVANT la règle catch-all 404.
+#
+#   tunnel: <votre-tunnel-id>
+#   credentials-file: /home/pi/.cloudflared/<tunnel-id>.json
+#   ingress:
+#     - hostname: coldtrack.maisonaditya.fr
+#       service: http://localhost:XXXX        # votre appli existante
+#     - hostname: devis.maisonaditya.fr
+#       service: http://localhost:8000         # l'appli devis (ce projet)
+#     - service: http_status:404               # catch-all, doit rester en dernier
+#
+#   Puis créez l'enregistrement DNS et redémarrez cloudflared :
+#     cloudflared tunnel route dns <votre-tunnel> devis.maisonaditya.fr
+#     sudo systemctl restart cloudflared
+#
+# Cas B — Tunnel géré par le DASHBOARD (Cloudflare Zero Trust) :
+#   Zero Trust > Networks > Tunnels > (votre tunnel) > Public Hostnames > Add :
+#     Subdomain : devis     Domain : maisonaditya.fr
+#     Service   : HTTP      URL : localhost:8000
+#   (Le DNS CNAME est créé automatiquement.)
+#
+# Dans les deux cas, le conteneur écoute sur 127.0.0.1:8000 et Cloudflare
+# fournit le HTTPS public — le mot de passe circule donc bien chiffré.

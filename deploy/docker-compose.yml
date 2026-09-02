@@ -6,16 +6,28 @@ services:
     container_name: devis-traiteur
     restart: unless-stopped
     ports:
-      - "8000:8000"
+      # Exposé uniquement en local : c'est Cloudflare Tunnel qui s'y connecte.
+      - "127.0.0.1:8000:8000"
+    env_file:
+      - .env   # deploy/.env : voir .env.example (APP_PASSWORD, DEVIS_DATA_DIR...)
     environment:
-      # Chemins VUS DE L'INTERIEUR du conteneur (voir volumes ci-dessous).
-      DATA_DIR: /data
+      # Chemins VUS DE L'INTERIEUR du conteneur (voir volumes plus bas).
+      DATA_DIR: /data                         # devis .xlsx (source de vérité, sur OneDrive)
       DEVIS_SUBDIR: devis
       TEMPLATE_PATH: /data/templates/template.xlsx
-      DATABASE_URL: sqlite:////data/devis.db
+      PDF_DIR: /pdf                           # PDF régénérés (volume, hors OneDrive)
+      DATABASE_URL: sqlite:////db/devis.db    # index SQLite (volume, hors OneDrive)
+      LOCK_FILE: /db/app_locked               # verrou de blocage (persistant)
       CORS_ORIGINS: "*"
+      APP_ENABLED: "true"
+      MAX_LOGIN_ATTEMPTS: "10"
+      # APP_PASSWORD vient de deploy/.env
     volumes:
-      # Montez ici votre dossier OneDrive deja synchronise sur le Pi.
-      # Exemple (a adapter) :
-      #   - "/home/pi/OneDrive/sarl ASD/Compta/Devis Traiteur:/data"
-      - "../data:/data"
+      # Dossier OneDrive déjà synchronisé sur le Pi (contient templates/ et devis/).
+      - "${DEVIS_DATA_DIR:?Définissez DEVIS_DATA_DIR dans deploy/.env}:/data"
+      - devis-db:/db     # base + verrou (persistant, pas sur OneDrive)
+      - devis-pdf:/pdf   # cache PDF (régénéré à la demande)
+
+volumes:
+  devis-db:
+  devis-pdf:

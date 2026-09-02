@@ -30,11 +30,17 @@ def expected_token() -> str:
 
 
 def is_locked() -> bool:
-    return not settings.app_enabled
+    return (not settings.app_enabled) or Path(settings.lock_file).exists()
 
 
 def _persist_disabled() -> None:
-    """Ecrit APP_ENABLED=false dans .env (blocage persistant)."""
+    """Rend le blocage persistant.
+
+    - En natif (.env present) : ecrit APP_ENABLED=false dans .env.
+      Reactivation : remettre APP_ENABLED=true dans .env puis redemarrer.
+    - Sinon (ex. Docker, config via variables) : cree un fichier verrou.
+      Reactivation : supprimer ce fichier (lock_file) puis redemarrer.
+    """
     settings.app_enabled = False
     if _ENV_PATH.exists():
         txt = _ENV_PATH.read_text(encoding="utf-8")
@@ -43,6 +49,10 @@ def _persist_disabled() -> None:
         else:
             txt = txt.rstrip("\n") + "\nAPP_ENABLED=false\n"
         _ENV_PATH.write_text(txt, encoding="utf-8")
+    else:
+        lock = Path(settings.lock_file)
+        lock.parent.mkdir(parents=True, exist_ok=True)
+        lock.write_text("locked", encoding="utf-8")
 
 
 def register_failed_attempt() -> int:

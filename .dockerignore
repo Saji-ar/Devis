@@ -1,0 +1,13 @@
+# Contexte de build Docker : on n'envoie pas les dépendances/artefacts locaux.
+backend/.venv/
+backend/.env
+backend/devis.db
+backend/app_locked
+backend/.pdf_cache/
+frontend/node_modules/
+frontend/dist/
+data/
+**/__pycache__/
+*.pyc
+.git/
+.DS_Store

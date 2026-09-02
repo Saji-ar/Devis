@@ -56,18 +56,34 @@ Prérequis : Python 3, Node 20+, et LibreOffice (`brew install --cask libreoffic
 
 ### Option A — Docker (recommandé)
 
-1. Dans `deploy/docker-compose.yml`, pointez le volume vers votre dossier OneDrive
-   synchronisé sur le Pi :
-   ```yaml
-   volumes:
-     - "/home/pi/OneDrive/sarl ASD/Compta/Devis Traiteur:/data"
+1. Sur le Pi, mettez le **template** dans le dossier OneDrive de données :
+   `<OneDrive>/Devis/data/templates/template.xlsx` (pour qu'il soit synchronisé et
+   trouvé par le conteneur).
+2. Copiez `deploy/.env.example` en `deploy/.env` et renseignez :
    ```
-   Ce dossier doit contenir `templates/template.xlsx`, `templates/template_mapping.json`
-   et un sous-dossier `devis/`.
-2. ```bash
+   DEVIS_DATA_DIR=/chemin/vers/OneDrive/Devis/data   # dossier synchronisé sur le Pi
+   APP_PASSWORD=votre-mot-de-passe
+   ```
+3. Lancez :
+   ```bash
    cd deploy && docker compose up -d --build
    ```
-3. Ouvrez `http://<ip-du-pi>:8000`.
+   Le conteneur écoute sur `127.0.0.1:8000`. Les devis `.xlsx` vont dans OneDrive
+   (`/data/devis`), tandis que la base SQLite et le cache PDF restent dans des volumes
+   Docker (hors OneDrive).
+
+### Exposition via Cloudflare Tunnel (devis.maisonaditya.fr)
+
+Voir `deploy/cloudflared-ingress-example.yml` : ajoutez un *public hostname*
+`devis.maisonaditya.fr` → `http://localhost:8000` dans votre tunnel existant.
+Cloudflare fournit le HTTPS ; le mot de passe circule donc chiffré.
+
+### Débloquer après trop de tentatives (en Docker)
+
+Le blocage crée `app_locked` dans le volume `devis-db`. Pour réactiver :
+```bash
+docker exec devis-traiteur rm -f /db/app_locked && docker restart devis-traiteur
+```
 
 ### Option B — systemd (sans Docker)
 
