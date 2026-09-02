@@ -61,9 +61,10 @@ class ClientUpdate(BaseModel):
 
 class DevisCreate(BaseModel):
     client_id: int
-    nom: Optional[str] = None        # nom du devis -> reference "AAAA_nom"
+    nom: Optional[str] = None                    # nom du devis -> reference "AAAAMMJJ_nom"
+    date_prestation: Optional[date] = None       # sert a la reference ; defaut = aujourd'hui
     titre: Optional[str] = None
-    reference: Optional[str] = None   # auto-genere si absent
+    reference: Optional[str] = None              # auto-genere si absent
 
 
 class VersionCreate(BaseModel):

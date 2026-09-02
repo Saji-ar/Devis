@@ -22,9 +22,9 @@ def _next_reference(session: Session) -> str:
     return f"{year}-{count + 1:03d}"
 
 
-def _reference_from_nom(session: Session, nom: str) -> str:
-    """Construit une reference "AAAA_nom" unique (ajoute un suffixe si deja pris)."""
-    base = storage.canonical_reference(f"{date.today().year}_{nom}")
+def _reference_from_nom(session: Session, nom: str, ref_date: date) -> str:
+    """Construit une reference "AAAAMMJJ_nom" unique (date de prestation, ou du jour)."""
+    base = storage.canonical_reference(f"{ref_date:%Y%m%d}_{nom}")
     ref, i = base, 2
     while session.exec(select(Devis).where(Devis.reference == ref)).first():
         ref = f"{base} ({i})"
@@ -60,7 +60,8 @@ def create_devis(payload: DevisCreate, session: Session = Depends(get_session)):
     if payload.reference:
         reference = payload.reference
     elif payload.nom and payload.nom.strip():
-        reference = _reference_from_nom(session, payload.nom.strip())
+        ref_date = payload.date_prestation or date.today()  # pas de date -> date d'edition
+        reference = _reference_from_nom(session, payload.nom.strip(), ref_date)
     else:
         reference = _next_reference(session)
     devis = Devis(client_id=payload.client_id,
@@ -138,12 +139,19 @@ def create_version(devis_id: int, payload: VersionCreate, session: Session = Dep
     return version
 
 
+def _download_stem(session: Session, v: DevisVersion) -> str:
+    """Nom de fichier lisible : <reference>_v<N>."""
+    devis = session.get(Devis, v.devis_id)
+    ref = devis.reference if devis else "devis"
+    return f"{ref}_v{v.version_no}"
+
+
 @router.get("/version/{version_id}/xlsx")
 def download_xlsx(version_id: int, session: Session = Depends(get_session)):
     v = session.get(DevisVersion, version_id)
     if not v:
         raise HTTPException(404, "Version introuvable")
-    return FileResponse(v.file_path, filename=storage.Path(v.file_path).name)
+    return FileResponse(v.file_path, filename=f"{_download_stem(session, v)}.xlsx")
 
 
 @router.get("/version/{version_id}/pdf")
@@ -154,7 +162,7 @@ def download_pdf(version_id: int, session: Session = Depends(get_session)):
     # PDF genere dans le dossier configurable (PDF_DIR, sinon <data_dir>/pdf).
     from ..config import settings
     pdf = pdf_service.xlsx_to_pdf(storage.Path(v.file_path), out_dir=settings.pdf_out_dir)
-    return FileResponse(pdf, filename=pdf.name, media_type="application/pdf")
+    return FileResponse(pdf, filename=f"{_download_stem(session, v)}.pdf", media_type="application/pdf")
 
 
 @router.post("/import")

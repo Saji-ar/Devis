@@ -13,7 +13,8 @@ export default function DevisListPage() {
 
   // Formulaire "Nouveau devis"
   const [showNew, setShowNew] = useState(false)
-  const [nom, setNom] = useState('')                     // nom du devis -> reference AAAA_nom
+  const [nom, setNom] = useState('')                     // nom du devis -> reference AAAAMMJJ_nom
+  const [datePresta, setDatePresta] = useState('')       // date de prestation (sert a la reference)
   const [clientId, setClientId] = useState<string>('')   // '' | '__new__' | id
   const [newNom, setNewNom] = useState('')
   const [newTel, setNewTel] = useState('')
@@ -41,8 +42,12 @@ export default function DevisListPage() {
       } else {
         setError('Choisissez un client.'); setBusy(false); return
       }
-      const d = await api.createDevis({ client_id: cid, nom: nom.trim() || undefined })
-      navigate(`/devis/${d.id}`)
+      const d = await api.createDevis({
+        client_id: cid,
+        nom: nom.trim() || undefined,
+        date_prestation: datePresta || undefined,
+      })
+      navigate(`/devis/${d.id}`, { state: { datePrestation: datePresta || undefined } })
     } catch (e: any) { setError(e.message) } finally { setBusy(false) }
   }
 
@@ -77,10 +82,20 @@ export default function DevisListPage() {
       {showNew && (
         <div className="panel">
           <h3 style={{ marginTop: 0 }}>Nouveau devis</h3>
-          <div className="field">
-            <label>Nom du devis (sert de référence : 2026_nom)</label>
-            <input value={nom} onChange={(e) => setNom(e.target.value)}
-              placeholder="Mariage Dupont, Anniversaire 50 ans…" />
+          <div className="row">
+            <div className="field">
+              <label>Nom du devis</label>
+              <input value={nom} onChange={(e) => setNom(e.target.value)}
+                placeholder="Mariage Dupont, Anniversaire 50 ans…" />
+            </div>
+            <div className="field">
+              <label>Date de la prestation</label>
+              <input type="date" value={datePresta} onChange={(e) => setDatePresta(e.target.value)} />
+            </div>
+          </div>
+          <div className="muted" style={{ marginTop: -4, marginBottom: 10 }}>
+            Référence générée : <strong>{(datePresta ? datePresta.replace(/-/g, '') : 'AAAAMMJJ')}_{nom || 'nom'}</strong>
+            {!datePresta && ' (date du jour si vide)'}
           </div>
           <div className="field">
             <label>Client</label>
@@ -124,8 +139,9 @@ export default function DevisListPage() {
                 </td>
                 <td className="num" style={{ whiteSpace: 'nowrap' }}>
                   {it.derniere_version && (
-                    <button className="small" title="Ouvrir le PDF"
-                      onClick={() => api.openPdf(it.derniere_version!.id).catch((e) => setError(e.message))}>
+                    <button className="small" title="Télécharger le PDF"
+                      onClick={() => api.downloadPdf(it.derniere_version!.id,
+                        `${it.devis.reference}_v${it.derniere_version!.version_no}.pdf`).catch((e) => setError(e.message))}>
                       📄 PDF
                     </button>
                   )}{' '}

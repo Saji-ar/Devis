@@ -49,7 +49,7 @@ export const api = {
 
   // Devis
   listDevis: () => req<DevisListItem[]>('/devis'),
-  createDevis: (d: { client_id: number; nom?: string; titre?: string }) =>
+  createDevis: (d: { client_id: number; nom?: string; date_prestation?: string; titre?: string }) =>
     req<Devis>('/devis', { method: 'POST', body: JSON.stringify(d) }),
   getDevis: (id: number) =>
     req<{ devis: Devis; client: Client; versions: DevisVersion[] }>(`/devis/${id}`),
@@ -75,22 +75,9 @@ export const api = {
   },
 
   // Telechargements authentifies (le jeton passe par l'en-tete, pas par l'URL).
-  openPdf: async (versionId: number) => {
-    const w = window.open('', '_blank') // ouvert AVANT l'await (sinon bloque par le navigateur)
-    try {
-      const res = await fetch(`${BASE}/devis/version/${versionId}/pdf`, {
-        headers: { 'X-Auth-Token': auth.token },
-      })
-      if (res.status === 401) { auth.clear(); location.reload(); return }
-      if (!res.ok) throw new Error('Erreur lors de la génération du PDF')
-      const url = URL.createObjectURL(await res.blob())
-      if (w) w.location.href = url; else window.location.href = url
-    } catch (e) { if (w) w.close(); throw e }
-  },
-  downloadXlsx: async (versionId: number, filename: string) => {
-    const res = await fetch(`${BASE}/devis/version/${versionId}/xlsx`, {
-      headers: { 'X-Auth-Token': auth.token },
-    })
+  // Le PDF est telecharge avec un nom lisible <reference>_v<N>.pdf.
+  downloadFile: async (path: string, filename: string) => {
+    const res = await fetch(`${BASE}${path}`, { headers: { 'X-Auth-Token': auth.token } })
     if (res.status === 401) { auth.clear(); location.reload(); return }
     if (!res.ok) throw new Error('Erreur de téléchargement')
     const url = URL.createObjectURL(await res.blob())
@@ -98,5 +85,11 @@ export const api = {
     a.href = url; a.download = filename
     document.body.appendChild(a); a.click(); a.remove()
     URL.revokeObjectURL(url)
+  },
+  downloadPdf(versionId: number, filename: string) {
+    return this.downloadFile(`/devis/version/${versionId}/pdf`, filename)
+  },
+  downloadXlsx(versionId: number, filename: string) {
+    return this.downloadFile(`/devis/version/${versionId}/xlsx`, filename)
   },
 }

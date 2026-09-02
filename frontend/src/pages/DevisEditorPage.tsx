@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, useLocation } from 'react-router-dom'
 import { api } from '../api'
 import type { Client, Devis, DevisData, DevisVersion, LigneDevis } from '../types'
 
@@ -22,6 +22,7 @@ function totaux(d: DevisData) {
 
 export default function DevisEditorPage() {
   const { id } = useParams()
+  const location = useLocation()
   const devisId = Number(id)
   const [devis, setDevis] = useState<Devis | null>(null)
   const [client, setClient] = useState<Client | null>(null)
@@ -39,7 +40,9 @@ export default function DevisEditorPage() {
       const d = await api.getVersionData(res.versions[0].id)
       setData({ ...d, date_devis: today() }) // repart de la derniere version, datee du jour
     } else {
-      setData(emptyData())
+      // Nouveau devis : preremplit la date de prestation saisie a la creation.
+      const dp = (location.state as { datePrestation?: string } | null)?.datePrestation
+      setData({ ...emptyData(), date_prestation: dp || null })
     }
   }
   useEffect(() => { load() }, [devisId])
@@ -83,8 +86,9 @@ export default function DevisEditorPage() {
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           {versions.length > 0 && (
-            <button onClick={() => api.openPdf(versions[0].id).catch((e) => setError(e.message))}
-              title="Ouvrir le PDF de la dernière version">📄 PDF</button>
+            <button onClick={() => api.downloadPdf(versions[0].id,
+              `${devis.reference}_v${versions[0].version_no}.pdf`).catch((e) => setError(e.message))}
+              title="Télécharger le PDF de la dernière version">📄 PDF</button>
           )}
           <button className="primary" onClick={save} disabled={saving}>
             {saving ? 'Enregistrement…' : '💾 Enregistrer une nouvelle version'}
@@ -169,7 +173,7 @@ export default function DevisEditorPage() {
                 <td><span className={`badge ${v.origin}`}>{v.origin}</span></td>
                 <td className="num">{euro(v.montant_ttc)}</td>
                 <td className="num" style={{ whiteSpace: 'nowrap' }}>
-                  <button className="small" onClick={() => api.openPdf(v.id).catch((e) => setError(e.message))}>PDF</button>{' '}
+                  <button className="small" onClick={() => api.downloadPdf(v.id, `${devis.reference}_v${v.version_no}.pdf`).catch((e) => setError(e.message))}>PDF</button>{' '}
                   <button className="small" onClick={() => api.downloadXlsx(v.id, `${devis.reference}_v${v.version_no}.xlsx`).catch((e) => setError(e.message))}>Excel</button>{' '}
                   <button className="small" onClick={() => chargerVersion(v)}>Repartir de là</button>
                 </td>
