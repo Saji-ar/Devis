@@ -71,3 +71,38 @@ class VersionCreate(BaseModel):
     """Cree une nouvelle version datee d'un devis a partir du contenu structure."""
     data: DevisData
     note: Optional[str] = None
+
+
+# ---------- Factures ----------
+
+class FactureData(BaseModel):
+    """Contenu structure d'une facture (meme tableau que le devis + n° et echeance)."""
+    numero: str = ""
+    date_facture: date = Field(default_factory=date.today)
+    date_echeance: Optional[date] = None
+    date_prestation: Optional[date] = None
+    client_nom: str = ""
+    client_tel: str = ""
+    client_email: str = ""
+    lignes: list[LigneDevis] = Field(default_factory=list)
+
+    def total_ht(self) -> float:
+        return round(sum(l.total_ht for l in self.lignes), 2)
+
+    def total_tva(self) -> float:
+        return round(sum(l.total_ht * (l.tva_pct / 100) for l in self.lignes), 2)
+
+    def total_ttc(self) -> float:
+        return round(self.total_ht() + self.total_tva(), 2)
+
+
+class FactureCreate(BaseModel):
+    client_id: int
+    date_facture: Optional[date] = None
+    date_echeance: Optional[date] = None
+    date_prestation: Optional[date] = None
+
+
+class FactureSave(BaseModel):
+    """Enregistre (ou remplace) le contenu d'une facture."""
+    data: FactureData

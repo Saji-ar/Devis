@@ -1,4 +1,4 @@
-import type { Client, Devis, DevisData, DevisListItem, DevisVersion } from './types'
+import type { Client, Devis, DevisData, DevisListItem, DevisVersion, Facture, FactureData, FactureListItem } from './types'
 
 const BASE = '/api'
 const TOKEN_KEY = 'devis_token'
@@ -73,6 +73,32 @@ export const api = {
     }
     return res.json() as Promise<{ imported: number; reference: string; devis_id: number }>
   },
+  uploadFacture: async (file: File) => {
+    const fd = new FormData()
+    fd.append('file', file)
+    const res = await fetch(`${BASE}/factures/import`, {
+      method: 'POST', headers: { 'X-Auth-Token': auth.token }, body: fd,
+    })
+    if (res.status === 401) { auth.clear(); location.reload(); throw new Error('Session expirée') }
+    if (!res.ok) {
+      const d = await res.json().catch(() => ({}))
+      throw new Error(d.detail || `Erreur ${res.status}`)
+    }
+    return res.json() as Promise<{ imported: number; numero: string; facture_id: number }>
+  },
+
+  // Factures
+  listFactures: () => req<FactureListItem[]>('/factures'),
+  createFacture: (d: { client_id: number; date_facture?: string; date_echeance?: string; date_prestation?: string }) =>
+    req<Facture>('/factures', { method: 'POST', body: JSON.stringify(d) }),
+  getFacture: (id: number) =>
+    req<{ facture: Facture; client: Client; devis_reference: string | null; data: FactureData }>(`/factures/${id}`),
+  saveFacture: (id: number, data: FactureData) =>
+    req<Facture>(`/factures/${id}`, { method: 'PUT', body: JSON.stringify({ data }) }),
+  setPaye: (id: number, paye: boolean) =>
+    req<Facture>(`/factures/${id}/paye`, { method: 'POST', body: JSON.stringify({ paye }) }),
+  factureFromDevis: (devisId: number) =>
+    req<Facture>(`/factures/from-devis/${devisId}`, { method: 'POST' }),
 
   // Telechargements authentifies (le jeton passe par l'en-tete, pas par l'URL).
   // Le PDF est telecharge avec un nom lisible <reference>_v<N>.pdf.

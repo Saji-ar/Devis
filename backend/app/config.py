@@ -8,6 +8,9 @@ class Settings(BaseSettings):
 
     data_dir: str = "../data"
     devis_subdir: str = "devis"
+    factures_subdir: str = "factures"       # dossier plat : DATA_DIR/factures/AAAANN.xlsx
+    clients_xlsx_name: str = "clients.xlsx"          # export des clients
+    suivi_xlsx_name: str = "suivi_factures.xlsx"     # registre de suivi des factures
     template_path: str = "../data/templates/template.xlsx"
     database_url: str = "sqlite:///./devis.db"
     cors_origins: str = "http://localhost:5173,http://localhost:4173"
@@ -34,6 +37,18 @@ class Settings(BaseSettings):
         return (Path(self.data_dir) / self.devis_subdir).resolve()
 
     @property
+    def factures_dir(self) -> Path:
+        return (Path(self.data_dir) / self.factures_subdir).resolve()
+
+    @property
+    def clients_xlsx(self) -> Path:
+        return (Path(self.data_dir) / self.clients_xlsx_name).resolve()
+
+    @property
+    def suivi_xlsx(self) -> Path:
+        return (Path(self.data_dir) / self.suivi_xlsx_name).resolve()
+
+    @property
     def pdf_out_dir(self) -> Path:
         base = Path(self.pdf_dir) if self.pdf_dir else Path(self.data_dir) / "pdf"
         return base.resolve()
@@ -51,5 +66,6 @@ settings = Settings()
 
 # S'assure que les dossiers existent au demarrage.
 settings.devis_dir.mkdir(parents=True, exist_ok=True)
+settings.factures_dir.mkdir(parents=True, exist_ok=True)
 settings.template_file.parent.mkdir(parents=True, exist_ok=True)
 settings.pdf_out_dir.mkdir(parents=True, exist_ok=True)

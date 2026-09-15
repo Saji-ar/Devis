@@ -51,3 +51,21 @@ class DevisVersion(SQLModel, table=True):
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
     devis: Optional[Devis] = Relationship(back_populates="versions")
+
+
+class Facture(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    numero: str = Field(index=True)             # "202601" (AAAA + sequence)
+    client_id: int = Field(foreign_key="client.id", index=True)
+    devis_id: Optional[int] = Field(default=None, foreign_key="devis.id", index=True)
+    date_facture: date = Field(default_factory=date.today)
+    date_echeance: Optional[date] = None
+    statut_paye: bool = Field(default=False)
+    file_path: str = ""                # chemin du .xlsx (1 fichier par facture)
+    file_hash: Optional[str] = None
+    montant_ht: float = 0.0
+    montant_tva: float = 0.0
+    montant_ttc: float = 0.0
+    data_json: Optional[str] = None
+    origin: str = Field(default="app")  # app / manuel / devis
+    created_at: datetime = Field(default_factory=datetime.utcnow)

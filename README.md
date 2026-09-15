@@ -30,6 +30,26 @@ data/
 deploy/    Dockerfile, docker-compose.yml, devis.service (systemd)
 ```
 
+## Facturation
+
+Onglet **Facturation** en plus des devis. Différences avec les devis :
+
+- **1 fichier par facture** dans un dossier plat : `DATA_DIR/factures/AAAANN.xlsx` (pas de versions).
+- **Numéro** `AAAANN` séquentiel qui repart à `01` chaque année (202601, 202602…).
+- **Échéance** en plus de la date de facture.
+- **Statut payé** modifiable dans l'appli **et** dans `suivi_factures.xlsx` (fusionné à l'actualisation).
+- **Depuis un devis** : bouton « 🧾 Créer une facture » dans l'éditeur de devis → reprend le
+  dernier état du devis, marque le devis « facturé ».
+
+Deux registres Excel maintenus dans `DATA_DIR` :
+- `clients.xlsx` : export tenu à jour des clients.
+- `suivi_factures.xlsx` : registre (N°, client, dates, HT/TVA/TTC, Payé, devis). La colonne
+  **Payé** est éditable à la main et relue à l'actualisation.
+
+Le template facture réutilise pour l'instant celui des devis (le n° et l'échéance sont injectés
+en haut à droite). Un vrai template « FACTURE » pourra le remplacer via `FACTURE_TEMPLATE_PATH`
+(à venir).
+
 ## Structure du template
 
 `data/templates/template.xlsx` est **votre vrai modèle** (logo « MAISON ADITYA », en-tête,

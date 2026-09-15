@@ -78,6 +78,7 @@ export default function App() {
         <h1>🍽️ Devis Traiteur</h1>
         <nav>
           <NavLink to="/devis" className={({ isActive }) => (isActive ? 'active' : '')}>Devis</NavLink>
+          <NavLink to="/factures" className={({ isActive }) => (isActive ? 'active' : '')}>Facturation</NavLink>
           <NavLink to="/clients" className={({ isActive }) => (isActive ? 'active' : '')}>Clients</NavLink>
         </nav>
         <button className="small logout-btn"

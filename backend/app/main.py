@@ -9,7 +9,7 @@ from fastapi.staticfiles import StaticFiles
 from .config import settings
 from .db import init_db
 from .security import require_auth
-from .routers import auth, clients, devis
+from .routers import auth, clients, devis, factures
 
 app = FastAPI(title="Devis Traiteur", version="0.1.0")
 
@@ -24,18 +24,22 @@ app.add_middleware(
 app.include_router(auth.router)
 app.include_router(clients.router, dependencies=[Depends(require_auth)])
 app.include_router(devis.router, dependencies=[Depends(require_auth)])
+app.include_router(factures.router, dependencies=[Depends(require_auth)])
 
 
 @app.on_event("startup")
 def on_startup():
     init_db()
-    # Scan initial : recupere les devis presents sur le disque (crees a la main / synchronises).
+    # Scan initial : recupere devis et factures presents sur le disque + exporte les registres.
     from .db import engine
-    from sqlmodel import Session
-    from . import scan_service
+    from sqlmodel import Session, select
+    from . import scan_service, facture_service, registers
+    from .models import Client
     try:
         with Session(engine) as s:
             scan_service.scan(s)
+            facture_service.scan_factures(s)
+            registers.export_clients(s.exec(select(Client).order_by(Client.nom)).all())
     except Exception:
         pass
 

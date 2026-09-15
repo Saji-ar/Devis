@@ -6,6 +6,8 @@ import App from './App'
 import ClientsPage from './pages/ClientsPage'
 import DevisListPage from './pages/DevisListPage'
 import DevisEditorPage from './pages/DevisEditorPage'
+import FacturesListPage from './pages/FacturesListPage'
+import FactureEditorPage from './pages/FactureEditorPage'
 
 const router = createBrowserRouter([
   {
@@ -16,6 +18,8 @@ const router = createBrowserRouter([
       { path: 'clients', element: <ClientsPage /> },
       { path: 'devis', element: <DevisListPage /> },
       { path: 'devis/:id', element: <DevisEditorPage /> },
+      { path: 'factures', element: <FacturesListPage /> },
+      { path: 'factures/:id', element: <FactureEditorPage /> },
     ],
   },
 ])

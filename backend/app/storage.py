@@ -52,3 +52,18 @@ def file_hash(path: Path) -> str:
         for chunk in iter(lambda: f.read(8192), b""):
             h.update(chunk)
     return h.hexdigest()
+
+
+# --- Factures : dossier plat, 1 fichier par facture nomme par son numero ---
+
+_FACTURE_RE = re.compile(r"^(\d{4}\d{2,})\.xlsx$", re.IGNORECASE)
+
+
+def facture_path(numero: str) -> Path:
+    return settings.factures_dir / f"{numero}.xlsx"
+
+
+def parse_facture_filename(name: str):
+    """Retourne le numero (AAAANN) ou None si le nom ne suit pas la convention."""
+    m = _FACTURE_RE.match(name)
+    return m.group(1) if m else None

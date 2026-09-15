@@ -48,3 +48,34 @@ export interface DevisListItem {
   nb_versions: number
   derniere_version: DevisVersion | null
 }
+
+export interface Facture {
+  id: number
+  numero: string
+  client_id: number
+  devis_id?: number | null
+  date_facture: string
+  date_echeance?: string | null
+  statut_paye: boolean
+  montant_ht: number
+  montant_tva: number
+  montant_ttc: number
+  origin: string
+}
+
+export interface FactureData {
+  numero: string
+  date_facture: string
+  date_echeance: string | null
+  date_prestation: string | null
+  client_nom: string
+  client_tel: string
+  client_email: string
+  lignes: LigneDevis[]
+}
+
+export interface FactureListItem {
+  facture: Facture
+  client: Client
+  devis_reference: string | null
+}

@@ -155,33 +155,38 @@ def _set_cell_text(xml: str, coord: str, text: str, style: str) -> str:
     return xml
 
 
-def _set_client(xml: str, data: DevisData) -> str:
+def _set_client(xml: str, nom: str, tel: str, email: str) -> str:
     # Bloc client aligne a droite (style s=1), cellules E10 / E11 / E12.
-    xml = _set_cell_text(xml, "E10", data.client_nom, "1")
-    xml = _set_cell_text(xml, "E11", data.client_tel, "1")
-    xml = _set_cell_text(xml, "E12", data.client_email, "1")
+    xml = _set_cell_text(xml, "E10", nom, "1")
+    xml = _set_cell_text(xml, "E11", tel, "1")
+    xml = _set_cell_text(xml, "E12", email, "1")
     return xml
 
 
-def _set_dates(xml: str, date_devis: date, date_prestation) -> str:
-    # E2 = date de devis : remplace =TODAY() par une date figee.
-    xml = re.sub(r'<c r="E2".*?</c>',
-                 f'<c r="E2" s="12"><v>{_serial(date_devis)}</v></c>', xml, count=1, flags=re.S)
+def _set_date_cell(xml: str, coord: str, d: date, style: str = "12") -> str:
+    """Ecrit une date figee (remplace une eventuelle formule =TODAY())."""
+    cell = f'<c r="{coord}" s="{style}"><v>{_serial(d)}</v></c>'
+    if re.search(rf'<c r="{coord}"', xml):
+        return re.sub(rf'<c r="{coord}".*?</c>', cell, xml, count=1, flags=re.S)
+    return xml
+
+
+def _set_prestation(xml: str, date_prestation) -> str:
     # B16 = date de prestation en TEXTE aligne a gauche (colonne trop etroite pour une vraie date).
-    if date_prestation:
-        txt = "   " + date_prestation.strftime("%d/%m/%Y")  # petit decalage visuel apres le libelle
-        cell = f'<c r="B16" s="1" t="inlineStr"><is><t xml:space="preserve">{txt}</t></is></c>'
-        if re.search(r'<c r="B16"[^>]*/>', xml):
-            xml = re.sub(r'<c r="B16"[^>]*/>', cell, xml, count=1)
-        elif re.search(r'<c r="B16"', xml):
-            xml = re.sub(r'<c r="B16".*?</c>', cell, xml, count=1, flags=re.S)
-        else:
-            xml = re.sub(r'(<row r="16"[^>]*>)', rf'\1{cell}', xml, count=1)
-    return xml
+    if not date_prestation:
+        return xml
+    txt = "   " + date_prestation.strftime("%d/%m/%Y")
+    cell = f'<c r="B16" s="1" t="inlineStr"><is><t xml:space="preserve">{txt}</t></is></c>'
+    if re.search(r'<c r="B16"[^>]*/>', xml):
+        return re.sub(r'<c r="B16"[^>]*/>', cell, xml, count=1)
+    if re.search(r'<c r="B16"', xml):
+        return re.sub(r'<c r="B16".*?</c>', cell, xml, count=1, flags=re.S)
+    return re.sub(r'(<row r="16"[^>]*>)', rf'\1{cell}', xml, count=1)
 
 
-def write_devis(data: DevisData, dest_path: Path) -> Path:
-    """Genere un .xlsx fidele au template a partir des donnees structurees."""
+def _generate_xlsx(dest_path: Path, lignes: list[LigneDevis], set_header) -> Path:
+    """Coeur commun de generation (devis et factures) : copie le template, applique
+    bordures + tableau, laisse `set_header(xml, st)` remplir les champs specifiques, rezippe."""
     dest_path = Path(dest_path)
     dest_path.parent.mkdir(parents=True, exist_ok=True)
     work = dest_path.with_suffix(".work")
@@ -192,17 +197,71 @@ def write_devis(data: DevisData, dest_path: Path) -> Path:
     with zipfile.ZipFile(settings.template_file) as z:
         z.extractall(work)
 
-    # Ajoute les styles avec bordure explicite (independants du style de tableau).
     styles_p = work / "xl/styles.xml"
     styles_xml, st = _ensure_border_styles(styles_p.read_text(encoding="utf-8"))
     styles_p.write_text(styles_xml, encoding="utf-8")
 
     sheet_p = work / "xl/worksheets/sheet1.xml"
     xml = sheet_p.read_text(encoding="utf-8")
-    xml = _build_sheet(xml, data.lignes, st)
-    xml = _set_dates(xml, data.date_devis, data.date_prestation)
-    xml = _set_client(xml, data)
+    xml = _build_sheet(xml, lignes, st)
+    xml = set_header(xml)
     sheet_p.write_text(xml, encoding="utf-8")
+
+    wb_p = work / "xl/workbook.xml"
+    wbx = wb_p.read_text(encoding="utf-8")
+    if "fullCalcOnLoad" not in wbx:
+        wbx = re.sub(r'<calcPr ', '<calcPr fullCalcOnLoad="1" ', wbx, count=1)
+    wb_p.write_text(wbx, encoding="utf-8")
+
+    tbl_p = work / "xl/tables/table1.xml"
+    n = max(len(lignes), 1)
+    txml = tbl_p.read_text(encoding="utf-8")
+    txml = re.sub(r'ref="A17:E\d+"', f'ref="A17:E{HEADER_ROW + n}"', txml)
+    tbl_p.write_text(txml, encoding="utf-8")
+
+    cc = work / "xl/calcChain.xml"
+    if cc.exists():
+        cc.unlink()
+        ct_p = work / "[Content_Types].xml"
+        ct_p.write_text(re.sub(r'<Override PartName="/xl/calcChain.xml"[^>]*/>', '',
+                               ct_p.read_text(encoding="utf-8")), encoding="utf-8")
+        wr_p = work / "xl/_rels/workbook.xml.rels"
+        wr_p.write_text(re.sub(r'<Relationship [^>]*calcChain[^>]*/>', '',
+                               wr_p.read_text(encoding="utf-8")), encoding="utf-8")
+
+    if dest_path.exists():
+        dest_path.unlink()
+    with zipfile.ZipFile(dest_path, "w", zipfile.ZIP_DEFLATED) as z:
+        for root, _, files in os.walk(work):
+            for f in files:
+                full = Path(root) / f
+                z.write(full, full.relative_to(work).as_posix())
+    shutil.rmtree(work)
+    return dest_path
+
+
+def write_devis(data: DevisData, dest_path: Path) -> Path:
+    """Genere un .xlsx de devis a partir des donnees structurees."""
+    def header(xml: str) -> str:
+        xml = _set_date_cell(xml, "E2", data.date_devis)
+        xml = _set_prestation(xml, data.date_prestation)
+        xml = _set_client(xml, data.client_nom, data.client_tel, data.client_email)
+        return xml
+    return _generate_xlsx(dest_path, data.lignes, header)
+
+
+def write_facture(data, dest_path: Path) -> Path:
+    """Genere un .xlsx de facture (template devis reutilise pour l'instant)."""
+    def header(xml: str) -> str:
+        xml = _set_date_cell(xml, "E2", data.date_facture)
+        xml = _set_prestation(xml, data.date_prestation)
+        # N° de facture + echeance (en texte, aligne a droite, sous la date).
+        xml = _set_cell_text(xml, "E3", f"Facture N° {data.numero}", "1")
+        if data.date_echeance:
+            xml = _set_cell_text(xml, "E4", f"Échéance : {data.date_echeance.strftime('%d/%m/%Y')}", "1")
+        xml = _set_client(xml, data.client_nom, data.client_tel, data.client_email)
+        return xml
+    return _generate_xlsx(dest_path, data.lignes, header)
 
     # Force le recalcul complet a l'ouverture.
     wb_p = work / "xl/workbook.xml"
@@ -267,24 +326,12 @@ def _parse_date(v):
     return None
 
 
-def read_devis(src_path: Path) -> DevisData:
-    """Relit un .xlsx (potentiellement modifie a la main) vers DevisData."""
-    wb = openpyxl.load_workbook(src_path, data_only=True)
-    ws = wb.active
-
-    date_devis = _parse_date(ws["E2"].value) or date.today()
-    date_prestation = _parse_date(ws["B16"].value)
-    client_nom = str(ws["E10"].value or "").strip()
-    client_tel = str(ws["E11"].value or "").strip()
-    client_email = str(ws["E12"].value or "").strip()
-
-    # Determine la derniere ligne du tableau via sa reference (sinon on s'arrete au 1er vide).
+def _read_lignes(ws) -> list[LigneDevis]:
     last_row = BODY_ROW
     if "Tableau1" in ws.tables:
         m = re.search(r':E(\d+)', ws.tables["Tableau1"].ref)
         if m:
             last_row = int(m.group(1))
-
     lignes: list[LigneDevis] = []
     for r in range(BODY_ROW, last_row + 1):
         produit = ws.cell(row=r, column=1).value
@@ -293,14 +340,46 @@ def read_devis(src_path: Path) -> DevisData:
         if (produit is None or str(produit).strip() == "") and prix == 0.0:
             continue
         lignes.append(LigneDevis(
-            produit=str(produit or ""),
-            quantite=qte,
-            prix_unit_ht=prix,
+            produit=str(produit or ""), quantite=qte, prix_unit_ht=prix,
             tva_pct=round(_to_float(ws.cell(row=r, column=4).value) * 100, 2),
         ))
+    return lignes
 
+
+def _read_client(ws) -> tuple[str, str, str]:
+    return (str(ws["E10"].value or "").strip(),
+            str(ws["E11"].value or "").strip(),
+            str(ws["E12"].value or "").strip())
+
+
+def read_devis(src_path: Path) -> DevisData:
+    """Relit un .xlsx de devis (potentiellement modifie a la main) vers DevisData."""
+    wb = openpyxl.load_workbook(src_path, data_only=True)
+    ws = wb.active
+    nom, tel, email = _read_client(ws)
     return DevisData(
-        date_devis=date_devis, date_prestation=date_prestation,
-        client_nom=client_nom, client_tel=client_tel, client_email=client_email,
-        lignes=lignes,
+        date_devis=_parse_date(ws["E2"].value) or date.today(),
+        date_prestation=_parse_date(ws["B16"].value),
+        client_nom=nom, client_tel=tel, client_email=email,
+        lignes=_read_lignes(ws),
+    )
+
+
+def read_facture(src_path: Path):
+    """Relit un .xlsx de facture vers FactureData (le numero vient du nom de fichier)."""
+    from .schemas import FactureData
+    wb = openpyxl.load_workbook(src_path, data_only=True)
+    ws = wb.active
+    nom, tel, email = _read_client(ws)
+    # Echeance eventuellement ecrite en texte "Échéance : JJ/MM/AAAA" en E4.
+    echeance = None
+    e4 = str(ws["E4"].value or "")
+    m = re.search(r'(\d{2}/\d{2}/\d{4})', e4)
+    if m:
+        echeance = _parse_date(m.group(1))
+    return FactureData(
+        numero="", date_facture=_parse_date(ws["E2"].value) or date.today(),
+        date_echeance=echeance, date_prestation=_parse_date(ws["B16"].value),
+        client_nom=nom, client_tel=tel, client_email=email,
+        lignes=_read_lignes(ws),
     )

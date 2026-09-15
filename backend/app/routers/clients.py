@@ -5,8 +5,17 @@ from sqlmodel import Session, select
 from ..db import get_session
 from ..models import Client, Devis
 from ..schemas import ClientCreate, ClientUpdate
+from .. import registers
 
 router = APIRouter(prefix="/api/clients", tags=["clients"])
+
+
+def _export(session: Session) -> None:
+    """Tient a jour l'export clients.xlsx."""
+    try:
+        registers.export_clients(session.exec(select(Client).order_by(Client.nom)).all())
+    except Exception:
+        pass
 
 
 @router.get("")
@@ -20,6 +29,7 @@ def create_client(payload: ClientCreate, session: Session = Depends(get_session)
     session.add(client)
     session.commit()
     session.refresh(client)
+    _export(session)
     return client
 
 
@@ -42,6 +52,7 @@ def update_client(client_id: int, payload: ClientUpdate, session: Session = Depe
     session.add(client)
     session.commit()
     session.refresh(client)
+    _export(session)
     return client
 
 
@@ -55,4 +66,5 @@ def delete_client(client_id: int, session: Session = Depends(get_session)):
         raise HTTPException(400, "Impossible de supprimer : des devis sont rattaches a ce client.")
     session.delete(client)
     session.commit()
+    _export(session)
     return {"ok": True}

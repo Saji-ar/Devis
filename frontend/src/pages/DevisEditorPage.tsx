@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useParams, useLocation } from 'react-router-dom'
+import { useParams, useLocation, useNavigate } from 'react-router-dom'
 import { api } from '../api'
 import type { Client, Devis, DevisData, DevisVersion, LigneDevis } from '../types'
 
@@ -23,6 +23,7 @@ function totaux(d: DevisData) {
 export default function DevisEditorPage() {
   const { id } = useParams()
   const location = useLocation()
+  const navigate = useNavigate()
   const devisId = Number(id)
   const [devis, setDevis] = useState<Devis | null>(null)
   const [client, setClient] = useState<Client | null>(null)
@@ -86,9 +87,15 @@ export default function DevisEditorPage() {
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           {versions.length > 0 && (
-            <button onClick={() => api.downloadPdf(versions[0].id,
-              `${devis.reference}_v${versions[0].version_no}.pdf`).catch((e) => setError(e.message))}
-              title="Télécharger le PDF de la dernière version">📄 PDF</button>
+            <>
+              <button onClick={() => api.downloadPdf(versions[0].id,
+                `${devis.reference}_v${versions[0].version_no}.pdf`).catch((e) => setError(e.message))}
+                title="Télécharger le PDF de la dernière version">📄 PDF</button>
+              <button onClick={async () => {
+                try { const f = await api.factureFromDevis(devisId); navigate(`/factures/${f.id}`) }
+                catch (e: any) { setError(e.message) }
+              }} title="Créer une facture à partir de ce devis">🧾 Créer une facture</button>
+            </>
           )}
           <button className="primary" onClick={save} disabled={saving}>
             {saving ? 'Enregistrement…' : '💾 Enregistrer une nouvelle version'}
