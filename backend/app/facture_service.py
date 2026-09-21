@@ -42,7 +42,7 @@ def next_numero(session: Session) -> str:
         if suf.isdigit():
             nums.append(int(suf))
     seq = (max(nums) + 1) if nums else 1
-    return f"{year}{seq:02d}"
+    return f"{year}{seq:03d}"        # AAAANNN, ex. 2026001
 
 
 # ---------- Ecriture d'une facture ----------

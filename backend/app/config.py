@@ -8,10 +8,12 @@ class Settings(BaseSettings):
 
     data_dir: str = "../data"
     devis_subdir: str = "devis"
-    factures_subdir: str = "factures"       # dossier plat : DATA_DIR/factures/AAAANN.xlsx
+    factures_subdir: str = "factures"       # dossier plat : DATA_DIR/factures/AAAANNN.xlsx
     clients_xlsx_name: str = "clients.xlsx"          # export des clients
     suivi_xlsx_name: str = "suivi_factures.xlsx"     # registre de suivi des factures
     template_path: str = "../data/templates/template.xlsx"
+    # Template des factures. Vide = reutilise le template des devis (template_path).
+    facture_template_path: str = ""
     database_url: str = "sqlite:///./devis.db"
     cors_origins: str = "http://localhost:5173,http://localhost:4173"
     # Dossier contenant d'anciens .xlsx a importer (bouton "Importer d'anciens devis").
@@ -56,6 +58,10 @@ class Settings(BaseSettings):
     @property
     def template_file(self) -> Path:
         return Path(self.template_path).resolve()
+
+    @property
+    def facture_template_file(self) -> Path:
+        return Path(self.facture_template_path).resolve() if self.facture_template_path else self.template_file
 
     @property
     def cors_list(self) -> list[str]:

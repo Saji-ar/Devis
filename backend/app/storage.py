@@ -56,7 +56,7 @@ def file_hash(path: Path) -> str:
 
 # --- Factures : dossier plat, 1 fichier par facture nomme par son numero ---
 
-_FACTURE_RE = re.compile(r"^(\d{4}\d{2,})\.xlsx$", re.IGNORECASE)
+_FACTURE_RE = re.compile(r"^(\d{4}\d{3,})\.xlsx$", re.IGNORECASE)   # AAAANNN
 
 
 def facture_path(numero: str) -> Path:

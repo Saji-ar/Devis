@@ -184,7 +184,7 @@ def _set_prestation(xml: str, date_prestation) -> str:
     return re.sub(r'(<row r="16"[^>]*>)', rf'\1{cell}', xml, count=1)
 
 
-def _generate_xlsx(dest_path: Path, lignes: list[LigneDevis], set_header) -> Path:
+def _generate_xlsx(dest_path: Path, lignes: list[LigneDevis], set_header, template: Path = None) -> Path:
     """Coeur commun de generation (devis et factures) : copie le template, applique
     bordures + tableau, laisse `set_header(xml, st)` remplir les champs specifiques, rezippe."""
     dest_path = Path(dest_path)
@@ -194,7 +194,7 @@ def _generate_xlsx(dest_path: Path, lignes: list[LigneDevis], set_header) -> Pat
         shutil.rmtree(work)
     work.mkdir(parents=True)
 
-    with zipfile.ZipFile(settings.template_file) as z:
+    with zipfile.ZipFile(template or settings.template_file) as z:
         z.extractall(work)
 
     styles_p = work / "xl/styles.xml"
@@ -261,7 +261,7 @@ def write_facture(data, dest_path: Path) -> Path:
             xml = _set_cell_text(xml, "E4", f"Échéance : {data.date_echeance.strftime('%d/%m/%Y')}", "1")
         xml = _set_client(xml, data.client_nom, data.client_tel, data.client_email)
         return xml
-    return _generate_xlsx(dest_path, data.lignes, header)
+    return _generate_xlsx(dest_path, data.lignes, header, template=settings.facture_template_file)
 
     # Force le recalcul complet a l'ouverture.
     wb_p = work / "xl/workbook.xml"
