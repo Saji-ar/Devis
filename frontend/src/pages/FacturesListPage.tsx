@@ -124,6 +124,10 @@ export default function FacturesListPage() {
                     onClick={() => api.downloadFile(`/factures/${it.facture.id}/pdf`, `Facture_${it.facture.numero}.pdf`).catch((e) => setError(e.message))}>
                     📄 PDF
                   </button>{' '}
+                  <button className="small" title="Télécharger l'Excel"
+                    onClick={() => api.downloadFile(`/factures/${it.facture.id}/xlsx`, `Facture_${it.facture.numero}.xlsx`).catch((e) => setError(e.message))}>
+                    📊 Excel
+                  </button>{' '}
                   <Link to={`/factures/${it.facture.id}`}>Ouvrir →</Link>
                 </td>
               </tr>

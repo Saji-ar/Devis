@@ -67,6 +67,7 @@ export default function FactureEditorPage() {
             {facture.statut_paye ? '✓ Payé' : 'Marquer payé'}
           </button>
           <button onClick={() => api.downloadFile(`/factures/${facture.id}/pdf`, `Facture_${facture.numero}.pdf`).catch((e) => setError(e.message))}>📄 PDF</button>
+          <button onClick={() => api.downloadFile(`/factures/${facture.id}/xlsx`, `Facture_${facture.numero}.xlsx`).catch((e) => setError(e.message))}>📊 Excel</button>
           <button className="primary" onClick={save} disabled={saving}>{saving ? 'Enregistrement…' : '💾 Enregistrer'}</button>
         </div>
       </div>

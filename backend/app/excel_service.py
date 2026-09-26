@@ -33,10 +33,6 @@ _PAD_PT = 8
 
 # ============================ ECRITURE ============================
 
-def _serial(d: date) -> int:
-    """Numero de serie Excel d'une date."""
-    return (d - date(1899, 12, 30)).days
-
 
 def _est_height(text: str) -> float:
     lines = 0
@@ -134,11 +130,20 @@ def _build_sheet(xml: str, lignes: list[LigneDevis], st: dict) -> str:
     return xml
 
 
-def _set_cell_text(xml: str, coord: str, text: str, style: str) -> str:
-    """Ecrit une chaine dans une cellule de la ligne d'entete (au-dessus du tableau)."""
-    cell = (f'<c r="{coord}" s="{style}" t="inlineStr"><is>'
+def _set_cell_text(xml: str, coord: str, text: str, style: str = None, keep_style: bool = False) -> str:
+    """Ecrit une chaine dans une cellule (au-dessus du tableau).
+
+    keep_style=True : conserve le style deja present sur la cellule du template (pour
+    respecter le format defini par l'utilisateur), sinon applique `style`.
+    """
+    if keep_style:
+        m = re.search(rf'<c r="{coord}"[^>]*?\bs="(\d+)"', xml)
+        if m:
+            style = m.group(1)
+    s_attr = f' s="{style}"' if style is not None else ''
+    cell = (f'<c r="{coord}"{s_attr} t="inlineStr"><is>'
             f'<t xml:space="preserve">{escape(text)}</t></is></c>' if text
-            else f'<c r="{coord}" s="{style}"/>')
+            else f'<c r="{coord}"{s_attr}/>')
     if re.search(rf'<c r="{coord}"[^>]*/>', xml):
         return re.sub(rf'<c r="{coord}"[^>]*/>', cell, xml, count=1)
     if re.search(rf'<c r="{coord}"', xml):
@@ -156,32 +161,23 @@ def _set_cell_text(xml: str, coord: str, text: str, style: str) -> str:
 
 
 def _set_client(xml: str, nom: str, tel: str, email: str) -> str:
-    # Bloc client aligne a droite (style s=1), cellules E10 / E11 / E12.
-    xml = _set_cell_text(xml, "E10", nom, "1")
-    xml = _set_cell_text(xml, "E11", tel, "1")
-    xml = _set_cell_text(xml, "E12", email, "1")
+    # Bloc client : garde le style du template s'il existe, sinon aligne a droite (s=1).
+    xml = _set_cell_text(xml, "E10", nom, style="1", keep_style=True)
+    xml = _set_cell_text(xml, "E11", tel, style="1", keep_style=True)
+    xml = _set_cell_text(xml, "E12", email, style="1", keep_style=True)
     return xml
 
 
-def _set_date_cell(xml: str, coord: str, d: date, style: str = "12") -> str:
-    """Ecrit une date figee (remplace une eventuelle formule =TODAY())."""
-    cell = f'<c r="{coord}" s="{style}"><v>{_serial(d)}</v></c>'
-    if re.search(rf'<c r="{coord}"', xml):
-        return re.sub(rf'<c r="{coord}".*?</c>', cell, xml, count=1, flags=re.S)
-    return xml
+def _fr(d) -> str:
+    """Date au format francais jj/mm/aaaa (ecrite en texte pour un affichage fiable)."""
+    return d.strftime("%d/%m/%Y") if d else ""
 
 
 def _set_prestation(xml: str, date_prestation) -> str:
-    # B16 = date de prestation en TEXTE aligne a gauche (colonne trop etroite pour une vraie date).
+    # B16 = date de prestation, en texte (garde le style du template s'il existe).
     if not date_prestation:
         return xml
-    txt = "   " + date_prestation.strftime("%d/%m/%Y")
-    cell = f'<c r="B16" s="1" t="inlineStr"><is><t xml:space="preserve">{txt}</t></is></c>'
-    if re.search(r'<c r="B16"[^>]*/>', xml):
-        return re.sub(r'<c r="B16"[^>]*/>', cell, xml, count=1)
-    if re.search(r'<c r="B16"', xml):
-        return re.sub(r'<c r="B16".*?</c>', cell, xml, count=1, flags=re.S)
-    return re.sub(r'(<row r="16"[^>]*>)', rf'\1{cell}', xml, count=1)
+    return _set_cell_text(xml, "B16", "   " + _fr(date_prestation), style="1", keep_style=True)
 
 
 def _generate_xlsx(dest_path: Path, lignes: list[LigneDevis], set_header, template: Path = None) -> Path:
@@ -243,7 +239,8 @@ def _generate_xlsx(dest_path: Path, lignes: list[LigneDevis], set_header, templa
 def write_devis(data: DevisData, dest_path: Path) -> Path:
     """Genere un .xlsx de devis a partir des donnees structurees."""
     def header(xml: str) -> str:
-        xml = _set_date_cell(xml, "E2", data.date_devis)
+        # E2 = date du devis, au format jj/mm/aaaa (texte), en gardant le style du template.
+        xml = _set_cell_text(xml, "E2", _fr(data.date_devis), keep_style=True)
         xml = _set_prestation(xml, data.date_prestation)
         xml = _set_client(xml, data.client_nom, data.client_tel, data.client_email)
         return xml
@@ -251,14 +248,13 @@ def write_devis(data: DevisData, dest_path: Path) -> Path:
 
 
 def write_facture(data, dest_path: Path) -> Path:
-    """Genere un .xlsx de facture (template devis reutilise pour l'instant)."""
+    """Genere un .xlsx de facture. Les libelles (N°, echeance...) sont deja dans le template :
+    on ecrit uniquement les VALEURS, en gardant le format des cellules du template."""
     def header(xml: str) -> str:
-        xml = _set_date_cell(xml, "E2", data.date_facture)
+        xml = _set_cell_text(xml, "E2", _fr(data.date_facture), keep_style=True)   # date de facturation
+        xml = _set_cell_text(xml, "E3", str(data.numero), keep_style=True)          # numero (brut)
+        xml = _set_cell_text(xml, "E4", _fr(data.date_echeance), keep_style=True)   # date d'echeance
         xml = _set_prestation(xml, data.date_prestation)
-        # N° de facture + echeance (en texte, aligne a droite, sous la date).
-        xml = _set_cell_text(xml, "E3", f"Facture N° {data.numero}", "1")
-        if data.date_echeance:
-            xml = _set_cell_text(xml, "E4", f"Échéance : {data.date_echeance.strftime('%d/%m/%Y')}", "1")
         xml = _set_client(xml, data.client_nom, data.client_tel, data.client_email)
         return xml
     return _generate_xlsx(dest_path, data.lignes, header, template=settings.facture_template_file)
@@ -371,15 +367,11 @@ def read_facture(src_path: Path):
     wb = openpyxl.load_workbook(src_path, data_only=True)
     ws = wb.active
     nom, tel, email = _read_client(ws)
-    # Echeance eventuellement ecrite en texte "Échéance : JJ/MM/AAAA" en E4.
-    echeance = None
-    e4 = str(ws["E4"].value or "")
-    m = re.search(r'(\d{2}/\d{2}/\d{4})', e4)
-    if m:
-        echeance = _parse_date(m.group(1))
     return FactureData(
-        numero="", date_facture=_parse_date(ws["E2"].value) or date.today(),
-        date_echeance=echeance, date_prestation=_parse_date(ws["B16"].value),
+        numero=str(ws["E3"].value or "").strip(),      # numero en E3 (info ; le scan utilise le nom de fichier)
+        date_facture=_parse_date(ws["E2"].value) or date.today(),
+        date_echeance=_parse_date(ws["E4"].value),     # echeance en E4 (date brute)
+        date_prestation=_parse_date(ws["B16"].value),
         client_nom=nom, client_tel=tel, client_email=email,
         lignes=_read_lignes(ws),
     )
