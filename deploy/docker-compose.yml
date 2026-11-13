@@ -15,7 +15,7 @@ services:
       # Chemins VUS DE L'INTERIEUR du conteneur (voir volumes plus bas).
       DATA_DIR: /data                         # devis/factures .xlsx (source de vérité, sur OneDrive)
       DEVIS_SUBDIR: devis
-      TEMPLATE_PATH: /data/templates/template.xlsx
+      TEMPLATE_PATH: /data/templates/template_devis.xlsx
       FACTURE_TEMPLATE_PATH: /data/templates/template_facture.xlsx
       PDF_DIR: /pdf                           # PDF régénérés (volume, hors OneDrive)
       DATABASE_URL: sqlite:////db/devis.db    # index SQLite (volume, hors OneDrive)

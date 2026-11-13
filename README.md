@@ -24,7 +24,7 @@ Les **fichiers Excel restent la source de vérité** ; SQLite n'est qu'un index 
 backend/   FastAPI + SQLModel (SQLite) + openpyxl + LibreOffice
 frontend/  React (Vite + TypeScript)
 data/
-  templates/template.xlsx          <- votre modèle de devis
+  templates/template_devis.xlsx          <- votre modèle de devis
   templates/template_mapping.json  <- correspondance champs <-> cellules
   devis/<référence>/v<N>_<date>.xlsx
 deploy/    Dockerfile, docker-compose.yml, devis.service (systemd)
@@ -52,7 +52,7 @@ en haut à droite). Un vrai template « FACTURE » pourra le remplacer via `FACT
 
 ## Structure du template
 
-`data/templates/template.xlsx` est **votre vrai modèle** (logo « MAISON ADITYA », en-tête,
+`data/templates/template_devis.xlsx` est **votre vrai modèle** (logo « MAISON ADITYA », en-tête,
 pied de page). La feuille contient :
 
 - `E2` : date de devis · `B16` : date de la prestation
@@ -77,7 +77,7 @@ Prérequis : Python 3, Node 20+, et LibreOffice (`brew install --cask libreoffic
 ### Option A — Docker (recommandé)
 
 1. Sur le Pi, mettez le **template** dans le dossier OneDrive de données :
-   `<OneDrive>/Devis/data/templates/template.xlsx` (pour qu'il soit synchronisé et
+   `<OneDrive>/Devis/data/templates/template_devis.xlsx` (pour qu'il soit synchronisé et
    trouvé par le conteneur).
 2. Copiez `deploy/.env.example` en `deploy/.env` et renseignez :
    ```

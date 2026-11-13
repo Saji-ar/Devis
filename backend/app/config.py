@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     factures_subdir: str = "factures"       # dossier plat : DATA_DIR/factures/AAAANNN.xlsx
     clients_xlsx_name: str = "clients.xlsx"          # export des clients
     suivi_xlsx_name: str = "suivi_factures.xlsx"     # registre de suivi des factures
-    template_path: str = "../data/templates/template.xlsx"
+    template_path: str = "../data/templates/template_devis.xlsx"
     # Template des factures. Vide = reutilise le template des devis (template_path).
     facture_template_path: str = ""
     database_url: str = "sqlite:///./devis.db"

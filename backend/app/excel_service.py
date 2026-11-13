@@ -82,7 +82,7 @@ def _body_row_xml(r: int, ligne: LigneDevis, st: dict) -> str:
     produit = escape(ligne.produit or "")
     tva_frac = (ligne.tva_pct or 0) / 100.0
     return (
-        f'<row r="{r}" spans="1:5" ht="{h:.0f}" customHeight="1" x14ac:dyDescent="0.2">'
+        f'<row r="{r}" spans="1:5" ht="{h:.0f}" customHeight="1">'
         f'<c r="A{r}" s="{st["A"]}" t="inlineStr"><is><t xml:space="preserve">{produit}</t></is></c>'
         f'<c r="B{r}" s="{st["B"]}"><v>{_num(ligne.quantite)}</v></c>'
         f'<c r="C{r}" s="{st["C"]}"><v>{_num(ligne.prix_unit_ht)}</v></c>'
@@ -153,7 +153,7 @@ def _set_cell_text(xml: str, coord: str, text: str, style: str = None, keep_styl
         return re.sub(rf'(<row r="{row}"[^>]*>)', rf'\1{cell}', xml, count=1)
     # Ligne absente : on l'insere a sa position (avant la 1ere ligne de numero superieur),
     # pour garder l'ordre croissant exige par le format xlsx.
-    new_row = f'<row r="{row}" spans="1:5" x14ac:dyDescent="0.2">{cell}</row>'
+    new_row = f'<row r="{row}" spans="1:5">{cell}</row>'
     for existing in sorted(set(int(m) for m in re.findall(r'<row r="(\d+)"', xml))):
         if existing > row:
             return re.sub(rf'(<row r="{existing}")', rf'{new_row}\1', xml, count=1)
@@ -161,10 +161,27 @@ def _set_cell_text(xml: str, coord: str, text: str, style: str = None, keep_styl
 
 
 def _set_client(xml: str, nom: str, tel: str, email: str) -> str:
-    # Bloc client : garde le style du template s'il existe, sinon aligne a droite (s=1).
+    # Bloc client du DEVIS : garde le style du template s'il existe, sinon aligne a droite (s=1).
     xml = _set_cell_text(xml, "E10", nom, style="1", keep_style=True)
     xml = _set_cell_text(xml, "E11", tel, style="1", keep_style=True)
     xml = _set_cell_text(xml, "E12", email, style="1", keep_style=True)
+    return xml
+
+
+# Bloc "Facturé à :" du template facture. Les cellules C7..C14 contiennent, dans le
+# template, des textes GRIS (style s=20) servant d'annotations ("[Nom du client]", etc.).
+# On ecrit les vraies valeurs en NOIR (style s=1, comme le bloc societe A6..A8) et on
+# efface les lignes grises que l'app ne gere pas (adresse, SIREN, TVA, livraison...).
+_FACTURE_CLIENT_STYLE = "1"
+
+
+def _set_facture_client(xml: str, nom: str, tel: str, email: str) -> str:
+    xml = _set_cell_text(xml, "C7", nom or "", style=_FACTURE_CLIENT_STYLE)   # nom / raison sociale
+    xml = _set_cell_text(xml, "C8", tel or "", style=_FACTURE_CLIENT_STYLE)   # telephone
+    xml = _set_cell_text(xml, "C9", email or "", style=_FACTURE_CLIENT_STYLE)  # email
+    # Efface les annotations grises restantes (pas de donnees correspondantes dans l'app).
+    for coord in ("C10", "C11", "C12", "C13", "C14"):
+        xml = _set_cell_text(xml, coord, "")
     return xml
 
 
@@ -255,44 +272,9 @@ def write_facture(data, dest_path: Path) -> Path:
         xml = _set_cell_text(xml, "E3", str(data.numero), keep_style=True)          # numero (brut)
         xml = _set_cell_text(xml, "E4", _fr(data.date_echeance), keep_style=True)   # date d'echeance
         xml = _set_prestation(xml, data.date_prestation)
-        xml = _set_client(xml, data.client_nom, data.client_tel, data.client_email)
+        xml = _set_facture_client(xml, data.client_nom, data.client_tel, data.client_email)
         return xml
     return _generate_xlsx(dest_path, data.lignes, header, template=settings.facture_template_file)
-
-    # Force le recalcul complet a l'ouverture.
-    wb_p = work / "xl/workbook.xml"
-    wbx = wb_p.read_text(encoding="utf-8")
-    if "fullCalcOnLoad" not in wbx:
-        wbx = re.sub(r'<calcPr ', '<calcPr fullCalcOnLoad="1" ', wbx, count=1)
-    wb_p.write_text(wbx, encoding="utf-8")
-
-    # Etend la reference du tableau au nombre de lignes.
-    tbl_p = work / "xl/tables/table1.xml"
-    n = max(len(data.lignes), 1)
-    txml = tbl_p.read_text(encoding="utf-8")
-    txml = re.sub(r'ref="A17:E\d+"', f'ref="A17:E{HEADER_ROW + n}"', txml)
-    tbl_p.write_text(txml, encoding="utf-8")
-
-    # Supprime calcChain (recalcule automatiquement, evite les avertissements Excel).
-    cc = work / "xl/calcChain.xml"
-    if cc.exists():
-        cc.unlink()
-        ct_p = work / "[Content_Types].xml"
-        ct_p.write_text(re.sub(r'<Override PartName="/xl/calcChain.xml"[^>]*/>', '',
-                               ct_p.read_text(encoding="utf-8")), encoding="utf-8")
-        wr_p = work / "xl/_rels/workbook.xml.rels"
-        wr_p.write_text(re.sub(r'<Relationship [^>]*calcChain[^>]*/>', '',
-                               wr_p.read_text(encoding="utf-8")), encoding="utf-8")
-
-    if dest_path.exists():
-        dest_path.unlink()
-    with zipfile.ZipFile(dest_path, "w", zipfile.ZIP_DEFLATED) as z:
-        for root, _, files in os.walk(work):
-            for f in files:
-                full = Path(root) / f
-                z.write(full, full.relative_to(work).as_posix())
-    shutil.rmtree(work)
-    return dest_path
 
 
 # ============================ LECTURE (scan) ============================
@@ -343,9 +325,23 @@ def _read_lignes(ws) -> list[LigneDevis]:
 
 
 def _read_client(ws) -> tuple[str, str, str]:
+    # Bloc client du DEVIS (aligne a droite, E10..E12).
     return (str(ws["E10"].value or "").strip(),
             str(ws["E11"].value or "").strip(),
             str(ws["E12"].value or "").strip())
+
+
+def _clean_cell(v) -> str:
+    """Nettoie une valeur lue : ignore les annotations grises du template ("[...]")."""
+    s = str(v or "").strip()
+    return "" if s.startswith("[") else s
+
+
+def _read_facture_client(ws) -> tuple[str, str, str]:
+    # Bloc "Facturé à :" du template facture (C7 nom, C8 tel, C9 email).
+    return (_clean_cell(ws["C7"].value),
+            _clean_cell(ws["C8"].value),
+            _clean_cell(ws["C9"].value))
 
 
 def read_devis(src_path: Path) -> DevisData:
@@ -366,7 +362,7 @@ def read_facture(src_path: Path):
     from .schemas import FactureData
     wb = openpyxl.load_workbook(src_path, data_only=True)
     ws = wb.active
-    nom, tel, email = _read_client(ws)
+    nom, tel, email = _read_facture_client(ws)
     return FactureData(
         numero=str(ws["E3"].value or "").strip(),      # numero en E3 (info ; le scan utilise le nom de fichier)
         date_facture=_parse_date(ws["E2"].value) or date.today(),
