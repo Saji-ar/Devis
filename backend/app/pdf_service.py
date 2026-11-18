@@ -52,3 +52,17 @@ def xlsx_to_pdf(xlsx_path: Path, out_dir: Path | None = None) -> Path:
             f"Echec conversion PDF.\nstdout: {result.stdout}\nstderr: {result.stderr}"
         )
     return pdf_path
+
+
+def save_pdf_beside(xlsx_path) -> Path | None:
+    """Genere et sauvegarde le PDF a cote du .xlsx (meme dossier, meme nom).
+
+    Utilise a l'enregistrement d'un devis/facture pour materialiser le PDF dans
+    OneDrive. Ne leve pas : retourne None si la conversion echoue (le bouton PDF
+    n'apparaitra simplement pas).
+    """
+    xlsx_path = Path(xlsx_path)
+    try:
+        return xlsx_to_pdf(xlsx_path, out_dir=xlsx_path.parent)
+    except Exception:
+        return None

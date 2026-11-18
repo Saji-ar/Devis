@@ -88,9 +88,11 @@ export default function DevisEditorPage() {
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           {versions.length > 0 && (
             <>
-              <button onClick={() => api.downloadPdf(versions[0].id,
-                `${devis.reference}_v${versions[0].version_no}.pdf`).catch((e) => setError(e.message))}
-                title="Télécharger le PDF de la dernière version">📄 PDF</button>
+              {versions[0].has_pdf && (
+                <button onClick={() => api.downloadPdf(versions[0].id,
+                  `${devis.reference}_v${versions[0].version_no}.pdf`).catch((e) => setError(e.message))}
+                  title="Télécharger le PDF de la dernière version">📄 PDF</button>
+              )}
               <button onClick={async () => {
                 try { const f = await api.factureFromDevis(devisId); navigate(`/factures/${f.id}`) }
                 catch (e: any) { setError(e.message) }
@@ -180,7 +182,7 @@ export default function DevisEditorPage() {
                 <td><span className={`badge ${v.origin}`}>{v.origin}</span></td>
                 <td className="num">{euro(v.montant_ttc)}</td>
                 <td className="num" style={{ whiteSpace: 'nowrap' }}>
-                  <button className="small" onClick={() => api.downloadPdf(v.id, `${devis.reference}_v${v.version_no}.pdf`).catch((e) => setError(e.message))}>PDF</button>{' '}
+                  {v.has_pdf && <button className="small" onClick={() => api.downloadPdf(v.id, `${devis.reference}_v${v.version_no}.pdf`).catch((e) => setError(e.message))}>PDF</button>}{v.has_pdf && ' '}
                   <button className="small" onClick={() => api.downloadXlsx(v.id, `${devis.reference}_v${v.version_no}.xlsx`).catch((e) => setError(e.message))}>Excel</button>{' '}
                   <button className="small" onClick={() => chargerVersion(v)}>Repartir de là</button>
                 </td>

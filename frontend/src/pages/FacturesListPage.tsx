@@ -120,10 +120,14 @@ export default function FacturesListPage() {
                   </button>
                 </td>
                 <td className="num" style={{ whiteSpace: 'nowrap' }}>
-                  <button className="small" title="Télécharger le PDF"
-                    onClick={() => api.downloadFile(`/factures/${it.facture.id}/pdf`, `Facture_${it.facture.numero}.pdf`).catch((e) => setError(e.message))}>
-                    📄 PDF
-                  </button>{' '}
+                  {it.has_pdf && (
+                    <>
+                      <button className="small" title="Télécharger le PDF"
+                        onClick={() => api.downloadFile(`/factures/${it.facture.id}/pdf`, `Facture_${it.facture.numero}.pdf`).catch((e) => setError(e.message))}>
+                        📄 PDF
+                      </button>{' '}
+                    </>
+                  )}
                   <button className="small" title="Télécharger l'Excel"
                     onClick={() => api.downloadFile(`/factures/${it.facture.id}/xlsx`, `Facture_${it.facture.numero}.xlsx`).catch((e) => setError(e.message))}>
                     📊 Excel

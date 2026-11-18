@@ -138,7 +138,7 @@ export default function DevisListPage() {
                   {it.derniere_version ? euro(it.derniere_version.montant_ttc) : '—'}
                 </td>
                 <td className="num" style={{ whiteSpace: 'nowrap' }}>
-                  {it.derniere_version && (
+                  {it.derniere_version && it.has_pdf && (
                     <button className="small" title="Télécharger le PDF"
                       onClick={() => api.downloadPdf(it.derniere_version!.id,
                         `${it.devis.reference}_v${it.derniere_version!.version_no}.pdf`).catch((e) => setError(e.message))}>

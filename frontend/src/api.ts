@@ -52,7 +52,7 @@ export const api = {
   createDevis: (d: { client_id: number; nom?: string; date_prestation?: string; titre?: string }) =>
     req<Devis>('/devis', { method: 'POST', body: JSON.stringify(d) }),
   getDevis: (id: number) =>
-    req<{ devis: Devis; client: Client; versions: DevisVersion[] }>(`/devis/${id}`),
+    req<{ devis: Devis; client: Client; versions: (DevisVersion & { has_pdf?: boolean })[] }>(`/devis/${id}`),
   getVersionData: (versionId: number) => req<DevisData>(`/devis/version/${versionId}/data`),
   createVersion: (devisId: number, data: DevisData) =>
     req<DevisVersion>(`/devis/${devisId}/versions`, {
@@ -92,7 +92,7 @@ export const api = {
   createFacture: (d: { client_id: number; date_facture?: string; date_echeance?: string; date_prestation?: string }) =>
     req<Facture>('/factures', { method: 'POST', body: JSON.stringify(d) }),
   getFacture: (id: number) =>
-    req<{ facture: Facture; client: Client; devis_reference: string | null; data: FactureData }>(`/factures/${id}`),
+    req<{ facture: Facture; client: Client; devis_reference: string | null; data: FactureData; has_pdf?: boolean }>(`/factures/${id}`),
   saveFacture: (id: number, data: FactureData) =>
     req<Facture>(`/factures/${id}`, { method: 'PUT', body: JSON.stringify({ data }) }),
   setPaye: (id: number, paye: boolean) =>

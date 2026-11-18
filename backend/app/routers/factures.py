@@ -26,7 +26,9 @@ def list_factures(session: Session = Depends(get_session)):
     for f in rows:
         client = session.get(Client, f.client_id)
         devis = session.get(Devis, f.devis_id) if f.devis_id else None
-        out.append({"facture": f, "client": client, "devis_reference": devis.reference if devis else None})
+        out.append({"facture": f, "client": client,
+                    "devis_reference": devis.reference if devis else None,
+                    "has_pdf": bool(f.file_path) and storage.pdf_for(f.file_path).exists()})
     return out
 
 
@@ -59,7 +61,8 @@ def get_facture(facture_id: int, session: Session = Depends(get_session)):
     client = session.get(Client, f.client_id)
     devis = session.get(Devis, f.devis_id) if f.devis_id else None
     data = json.loads(f.data_json) if f.data_json else FactureData(numero=f.numero).model_dump(mode="json")
-    return {"facture": f, "client": client, "devis_reference": devis.reference if devis else None, "data": data}
+    return {"facture": f, "client": client, "devis_reference": devis.reference if devis else None,
+            "data": data, "has_pdf": bool(f.file_path) and storage.pdf_for(f.file_path).exists()}
 
 
 @router.put("/{facture_id}")
@@ -107,7 +110,10 @@ def download_pdf(facture_id: int, session: Session = Depends(get_session)):
     f = session.get(Facture, facture_id)
     if not f or not f.file_path:
         raise HTTPException(404, "Fichier introuvable")
-    pdf = pdf_service.xlsx_to_pdf(storage.Path(f.file_path), out_dir=settings.pdf_out_dir)
+    # Sert le PDF sauvegarde a cote du .xlsx ; le (re)genere s'il manque.
+    pdf = storage.pdf_for(f.file_path)
+    if not pdf.exists():
+        pdf = pdf_service.xlsx_to_pdf(storage.Path(f.file_path), out_dir=pdf.parent)
     return FileResponse(pdf, filename=f"Facture_{f.numero}.pdf", media_type="application/pdf")
 
 

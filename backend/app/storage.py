@@ -63,6 +63,15 @@ def facture_path(numero: str) -> Path:
     return settings.factures_dir / f"{numero}.xlsx"
 
 
+def pdf_for(xlsx_path) -> Path:
+    """PDF sauvegarde a cote du .xlsx source (meme nom, extension .pdf).
+
+    Devis : <ref>/v<N>_<date>.pdf (une version = un PDF). Facture : <numero>.pdf.
+    Les PDF vivent dans DATA_DIR (OneDrive) -> synchronises et sauvegardes.
+    """
+    return Path(xlsx_path).with_suffix(".pdf")
+
+
 def parse_facture_filename(name: str):
     """Retourne le numero (AAAANN) ou None si le nom ne suit pas la convention."""
     m = _FACTURE_RE.match(name)

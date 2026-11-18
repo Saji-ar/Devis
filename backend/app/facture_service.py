@@ -14,7 +14,7 @@ from sqlmodel import Session, select
 from .config import settings
 from .models import Client, Devis, DevisVersion, Facture
 from .schemas import FactureData, LigneDevis
-from . import storage, excel_service, registers
+from . import storage, excel_service, registers, pdf_service
 
 _ECHEANCE_JOURS = 30
 _last_scan = 0.0
@@ -65,6 +65,7 @@ def save_facture(session: Session, facture: Facture, data: FactureData) -> Factu
 
     path = storage.facture_path(facture.numero)
     excel_service.write_facture(data, path)
+    pdf_service.save_pdf_beside(path)   # PDF sauvegarde a cote (OneDrive) a l'enregistrement
 
     facture.file_path = str(path)
     facture.file_hash = storage.file_hash(path)

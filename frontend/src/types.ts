@@ -29,6 +29,7 @@ export interface DevisVersion {
   montant_tva: number
   montant_ttc: number
   origin: string
+  has_pdf?: boolean
 }
 
 export interface LigneDevis {
@@ -49,6 +50,7 @@ export interface DevisListItem {
   client: Client
   nb_versions: number
   derniere_version: DevisVersion | null
+  has_pdf?: boolean
 }
 
 export interface Facture {
@@ -80,4 +82,5 @@ export interface FactureListItem {
   facture: Facture
   client: Client
   devis_reference: string | null
+  has_pdf?: boolean
 }

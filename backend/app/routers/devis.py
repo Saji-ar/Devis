@@ -43,11 +43,13 @@ def list_devis(session: Session = Depends(get_session)):
             .order_by(DevisVersion.version_no.desc())
         ).all()
         client = session.get(Client, d.client_id)
+        last = versions[0] if versions else None
         out.append({
             "devis": d,
             "client": client,
             "nb_versions": len(versions),
-            "derniere_version": versions[0] if versions else None,
+            "derniere_version": last,
+            "has_pdf": bool(last and last.file_path) and storage.pdf_for(last.file_path).exists(),
         })
     return out
 
@@ -83,7 +85,12 @@ def get_devis(devis_id: int, session: Session = Depends(get_session)):
         select(DevisVersion).where(DevisVersion.devis_id == devis_id)
         .order_by(DevisVersion.version_no.desc())
     ).all()
-    return {"devis": devis, "client": client, "versions": versions}
+    versions_out = [
+        {**v.model_dump(mode="json"),
+         "has_pdf": bool(v.file_path) and storage.pdf_for(v.file_path).exists()}
+        for v in versions
+    ]
+    return {"devis": devis, "client": client, "versions": versions_out}
 
 
 @router.get("/version/{version_id}/data")
@@ -120,6 +127,7 @@ def create_version(devis_id: int, payload: VersionCreate, session: Session = Dep
 
     path = storage.version_path(devis.reference, next_no, data.date_devis)
     excel_service.write_devis(data, path)
+    pdf_service.save_pdf_beside(path)   # PDF sauvegarde a cote (OneDrive) a l'enregistrement
 
     version = DevisVersion(
         devis_id=devis_id,
@@ -159,9 +167,10 @@ def download_pdf(version_id: int, session: Session = Depends(get_session)):
     v = session.get(DevisVersion, version_id)
     if not v:
         raise HTTPException(404, "Version introuvable")
-    # PDF genere dans le dossier configurable (PDF_DIR, sinon <data_dir>/pdf).
-    from ..config import settings
-    pdf = pdf_service.xlsx_to_pdf(storage.Path(v.file_path), out_dir=settings.pdf_out_dir)
+    # Sert le PDF sauvegarde a cote du .xlsx ; le (re)genere s'il manque.
+    pdf = storage.pdf_for(v.file_path)
+    if not pdf.exists():
+        pdf = pdf_service.xlsx_to_pdf(storage.Path(v.file_path), out_dir=pdf.parent)
     return FileResponse(pdf, filename=f"{_download_stem(session, v)}.pdf", media_type="application/pdf")
 
 

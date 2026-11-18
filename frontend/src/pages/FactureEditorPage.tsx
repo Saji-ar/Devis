@@ -18,13 +18,14 @@ export default function FactureEditorPage() {
   const [client, setClient] = useState<Client | null>(null)
   const [devisRef, setDevisRef] = useState<string | null>(null)
   const [data, setData] = useState<FactureData | null>(null)
+  const [hasPdf, setHasPdf] = useState(false)
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
 
   const load = async () => {
     const res = await api.getFacture(factureId)
     setFacture(res.facture); setClient(res.client); setDevisRef(res.devis_reference)
-    setData(res.data)
+    setData(res.data); setHasPdf(!!res.has_pdf)
   }
   useEffect(() => { load() }, [factureId])
 
@@ -66,7 +67,7 @@ export default function FactureEditorPage() {
             style={{ cursor: 'pointer', border: 'none', padding: '8px 14px' }} onClick={togglePaye}>
             {facture.statut_paye ? '✓ Payé' : 'Marquer payé'}
           </button>
-          <button onClick={() => api.downloadFile(`/factures/${facture.id}/pdf`, `Facture_${facture.numero}.pdf`).catch((e) => setError(e.message))}>📄 PDF</button>
+          {hasPdf && <button onClick={() => api.downloadFile(`/factures/${facture.id}/pdf`, `Facture_${facture.numero}.pdf`).catch((e) => setError(e.message))}>📄 PDF</button>}
           <button onClick={() => api.downloadFile(`/factures/${facture.id}/xlsx`, `Facture_${facture.numero}.xlsx`).catch((e) => setError(e.message))}>📊 Excel</button>
           <button className="primary" onClick={save} disabled={saving}>{saving ? 'Enregistrement…' : '💾 Enregistrer'}</button>
         </div>
