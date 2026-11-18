@@ -47,6 +47,8 @@ class ClientCreate(BaseModel):
     nom: str
     telephone: Optional[str] = None
     email: Optional[str] = None
+    adresse_1: Optional[str] = None
+    adresse_2: Optional[str] = None
     source: Optional[str] = None
     notes: Optional[str] = None
 
@@ -55,6 +57,8 @@ class ClientUpdate(BaseModel):
     nom: Optional[str] = None
     telephone: Optional[str] = None
     email: Optional[str] = None
+    adresse_1: Optional[str] = None
+    adresse_2: Optional[str] = None
     source: Optional[str] = None
     notes: Optional[str] = None
 
@@ -84,6 +88,8 @@ class FactureData(BaseModel):
     client_nom: str = ""
     client_tel: str = ""
     client_email: str = ""
+    client_adresse_1: str = ""   # affichee sur la facture (C8)
+    client_adresse_2: str = ""   # affichee sur la facture (C9)
     lignes: list[LigneDevis] = Field(default_factory=list)
 
     def total_ht(self) -> float:

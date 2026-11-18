@@ -170,16 +170,16 @@ def _set_client(xml: str, nom: str, tel: str, email: str) -> str:
 
 # Bloc "Facturé à :" du template facture. Les cellules C7..C14 contiennent, dans le
 # template, des textes GRIS (style s=20) servant d'annotations ("[Nom du client]", etc.).
-# On ecrit les vraies valeurs en NOIR (style s=1, comme le bloc societe A6..A8) et on
-# efface les lignes grises que l'app ne gere pas (adresse, SIREN, TVA, livraison...).
+# On ecrit les vraies valeurs en NOIR (style s=1, comme le bloc societe A6..A8) :
+#   C7 = nom / raison sociale, C8 = adresse (ligne 1), C9 = code postal + ville.
+# On efface les lignes grises restantes (SIREN, TVA, livraison, BC, ref devis).
 _FACTURE_CLIENT_STYLE = "1"
 
 
-def _set_facture_client(xml: str, nom: str, tel: str, email: str) -> str:
-    xml = _set_cell_text(xml, "C7", nom or "", style=_FACTURE_CLIENT_STYLE)   # nom / raison sociale
-    xml = _set_cell_text(xml, "C8", tel or "", style=_FACTURE_CLIENT_STYLE)   # telephone
-    xml = _set_cell_text(xml, "C9", email or "", style=_FACTURE_CLIENT_STYLE)  # email
-    # Efface les annotations grises restantes (pas de donnees correspondantes dans l'app).
+def _set_facture_client(xml: str, nom: str, adresse_1: str, adresse_2: str) -> str:
+    xml = _set_cell_text(xml, "C7", nom or "", style=_FACTURE_CLIENT_STYLE)
+    xml = _set_cell_text(xml, "C8", adresse_1 or "", style=_FACTURE_CLIENT_STYLE)
+    xml = _set_cell_text(xml, "C9", adresse_2 or "", style=_FACTURE_CLIENT_STYLE)
     for coord in ("C10", "C11", "C12", "C13", "C14"):
         xml = _set_cell_text(xml, coord, "")
     return xml
@@ -272,7 +272,7 @@ def write_facture(data, dest_path: Path) -> Path:
         xml = _set_cell_text(xml, "E3", str(data.numero), keep_style=True)          # numero (brut)
         xml = _set_cell_text(xml, "E4", _fr(data.date_echeance), keep_style=True)   # date d'echeance
         xml = _set_prestation(xml, data.date_prestation)
-        xml = _set_facture_client(xml, data.client_nom, data.client_tel, data.client_email)
+        xml = _set_facture_client(xml, data.client_nom, data.client_adresse_1, data.client_adresse_2)
         return xml
     return _generate_xlsx(dest_path, data.lignes, header, template=settings.facture_template_file)
 
@@ -338,10 +338,18 @@ def _clean_cell(v) -> str:
 
 
 def _read_facture_client(ws) -> tuple[str, str, str]:
-    # Bloc "Facturé à :" du template facture (C7 nom, C8 tel, C9 email).
-    return (_clean_cell(ws["C7"].value),
-            _clean_cell(ws["C8"].value),
-            _clean_cell(ws["C9"].value))
+    """Retourne (nom, adresse_1, adresse_2). Tolere plusieurs mises en page :
+    - nouveau template facture : nom=C7, adresse=C8/C9 ;
+    - ancien export (Supabase)  : nom=E9, adresse=E10/E11 ;
+    - ancien template app       : nom=E10, puis E11/E12.
+    """
+    c7 = _clean_cell(ws["C7"].value)
+    if c7:
+        return c7, _clean_cell(ws["C8"].value), _clean_cell(ws["C9"].value)
+    e9 = _clean_cell(ws["E9"].value)
+    if e9:
+        return e9, _clean_cell(ws["E10"].value), _clean_cell(ws["E11"].value)
+    return (_clean_cell(ws["E10"].value), _clean_cell(ws["E11"].value), _clean_cell(ws["E12"].value))
 
 
 def read_devis(src_path: Path) -> DevisData:
@@ -362,12 +370,12 @@ def read_facture(src_path: Path):
     from .schemas import FactureData
     wb = openpyxl.load_workbook(src_path, data_only=True)
     ws = wb.active
-    nom, tel, email = _read_facture_client(ws)
+    nom, adresse_1, adresse_2 = _read_facture_client(ws)
     return FactureData(
         numero=str(ws["E3"].value or "").strip(),      # numero en E3 (info ; le scan utilise le nom de fichier)
         date_facture=_parse_date(ws["E2"].value) or date.today(),
         date_echeance=_parse_date(ws["E4"].value),     # echeance en E4 (date brute)
         date_prestation=_parse_date(ws["B16"].value),
-        client_nom=nom, client_tel=tel, client_email=email,
+        client_nom=nom, client_adresse_1=adresse_1, client_adresse_2=adresse_2,
         lignes=_read_lignes(ws),
     )

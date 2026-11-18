@@ -11,7 +11,7 @@ from openpyxl.styles import Font
 
 from .config import settings
 
-_CLIENTS_HEADERS = ["Nom", "Téléphone", "Email", "Source", "Notes"]
+_CLIENTS_HEADERS = ["Nom", "Téléphone", "Email", "Adresse", "CP / Ville", "Source", "Notes"]
 _SUIVI_HEADERS = ["N°", "Client", "Date facture", "Échéance", "HT", "TVA", "TTC", "Payé", "Devis"]
 
 
@@ -24,9 +24,10 @@ def export_clients(clients) -> None:
     for c in ws[1]:
         c.font = Font(bold=True)
     for cl in clients:
-        ws.append([cl.nom, cl.telephone or "", cl.email or "", cl.source or "", cl.notes or ""])
+        ws.append([cl.nom, cl.telephone or "", cl.email or "",
+                   cl.adresse_1 or "", cl.adresse_2 or "", cl.source or "", cl.notes or ""])
     ws.column_dimensions["A"].width = 28
-    for col in ("B", "C", "D", "E"):
+    for col in ("B", "C", "D", "E", "F", "G"):
         ws.column_dimensions[col].width = 22
     settings.clients_xlsx.parent.mkdir(parents=True, exist_ok=True)
     wb.save(settings.clients_xlsx)

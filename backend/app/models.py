@@ -14,6 +14,8 @@ class Client(SQLModel, table=True):
     nom: str = Field(index=True)
     telephone: Optional[str] = None
     email: Optional[str] = None
+    adresse_1: Optional[str] = None   # rue / voie (ligne 1 de l'adresse de facturation)
+    adresse_2: Optional[str] = None   # code postal + ville (ligne 2)
     source: Optional[str] = None  # comment le client nous a connu
     notes: Optional[str] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { api } from '../api'
 import type { Client } from '../types'
 
-const EMPTY = { nom: '', telephone: '', email: '', source: '', notes: '' }
+const EMPTY = { nom: '', telephone: '', email: '', adresse_1: '', adresse_2: '', source: '', notes: '' }
 
 export default function ClientsPage() {
   const [clients, setClients] = useState<Client[]>([])
@@ -58,6 +58,14 @@ export default function ClientsPage() {
             <input value={form.source} onChange={(e) => setForm({ ...form, source: e.target.value })}
               placeholder="Bouche-à-oreille, Instagram, mariage d'un ami..." /></div>
         </div>
+        <div className="row">
+          <div className="field"><label>Adresse (facturation)</label>
+            <input value={form.adresse_1} onChange={(e) => setForm({ ...form, adresse_1: e.target.value })}
+              placeholder="N° et rue" /></div>
+          <div className="field"><label>Code postal / Ville</label>
+            <input value={form.adresse_2} onChange={(e) => setForm({ ...form, adresse_2: e.target.value })}
+              placeholder="93000 Bobigny" /></div>
+        </div>
         <div className="field"><label>Notes</label>
           <textarea rows={2} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div>
         {error && <div className="error">{error}</div>}
@@ -72,7 +80,11 @@ export default function ClientsPage() {
           <tbody>
             {clients.map((c) => editId === c.id ? (
               <tr key={c.id}>
-                <td><input value={edit.nom || ''} onChange={(e) => setEdit({ ...edit, nom: e.target.value })} /></td>
+                <td>
+                  <input value={edit.nom || ''} onChange={(e) => setEdit({ ...edit, nom: e.target.value })} placeholder="Nom" />
+                  <input value={edit.adresse_1 || ''} onChange={(e) => setEdit({ ...edit, adresse_1: e.target.value })} placeholder="Adresse" style={{ marginTop: 4 }} />
+                  <input value={edit.adresse_2 || ''} onChange={(e) => setEdit({ ...edit, adresse_2: e.target.value })} placeholder="CP / Ville" style={{ marginTop: 4 }} />
+                </td>
                 <td><input value={edit.telephone || ''} onChange={(e) => setEdit({ ...edit, telephone: e.target.value })} /></td>
                 <td><input value={edit.source || ''} onChange={(e) => setEdit({ ...edit, source: e.target.value })} /></td>
                 <td className="num" style={{ whiteSpace: 'nowrap' }}>
@@ -82,7 +94,10 @@ export default function ClientsPage() {
               </tr>
             ) : (
               <tr key={c.id}>
-                <td><strong>{c.nom}</strong>{c.email && <div className="muted">{c.email}</div>}</td>
+                <td><strong>{c.nom}</strong>
+                  {c.email && <div className="muted">{c.email}</div>}
+                  {(c.adresse_1 || c.adresse_2) && <div className="muted">{[c.adresse_1, c.adresse_2].filter(Boolean).join(' — ')}</div>}
+                </td>
                 <td>{c.telephone || '—'}</td>
                 <td>{c.source || '—'}</td>
                 <td className="num" style={{ whiteSpace: 'nowrap' }}>

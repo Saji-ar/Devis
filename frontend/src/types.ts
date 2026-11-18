@@ -3,6 +3,8 @@ export interface Client {
   nom: string
   telephone?: string | null
   email?: string | null
+  adresse_1?: string | null
+  adresse_2?: string | null
   source?: string | null
   notes?: string | null
   created_at?: string

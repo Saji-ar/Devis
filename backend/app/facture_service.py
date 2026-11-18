@@ -23,11 +23,16 @@ _SCAN_THROTTLE_S = 8.0
 
 # ---------- Clients (cache partage) ----------
 
-def get_or_create_client(session: Session, nom: str) -> Client:
+def get_or_create_client(session: Session, nom: str, adresse_1: str = "", adresse_2: str = "") -> Client:
     nom = (nom or "").strip() or "A preciser"
     client = session.exec(select(Client).where(Client.nom == nom)).first()
     if not client:
-        client = Client(nom=nom)
+        client = Client(nom=nom, adresse_1=adresse_1 or None, adresse_2=adresse_2 or None)
+        session.add(client); session.commit(); session.refresh(client)
+    elif (adresse_1 or adresse_2) and not (client.adresse_1 or client.adresse_2):
+        # Complete l'adresse si le client n'en avait pas (reconstruction depuis les factures).
+        client.adresse_1 = adresse_1 or None
+        client.adresse_2 = adresse_2 or None
         session.add(client); session.commit(); session.refresh(client)
     return client
 
@@ -55,6 +60,8 @@ def save_facture(session: Session, facture: Facture, data: FactureData) -> Factu
         data.client_nom = client.nom or ""
         data.client_tel = client.telephone or ""
         data.client_email = client.email or ""
+        data.client_adresse_1 = client.adresse_1 or ""
+        data.client_adresse_2 = client.adresse_2 or ""
 
     path = storage.facture_path(facture.numero)
     excel_service.write_facture(data, path)
@@ -148,7 +155,7 @@ def scan_factures(session: Session) -> dict:
         if existing and existing.file_hash == h:
             continue
         data = excel_service.read_facture(xlsx)
-        client = get_or_create_client(session, data.client_nom)
+        client = get_or_create_client(session, data.client_nom, data.client_adresse_1, data.client_adresse_2)
         if existing:
             existing.file_hash = h
             existing.date_facture = data.date_facture
